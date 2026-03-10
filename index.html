@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频创作脚本标注工具 v5 (多人协作版)</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e2e5eb;
+  --border2: #d0d4de;
+  --accent: #8b5cf6;
+  --accent-light: #f3e8ff;
+  --accent-dark: #7c3aed;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --warn: #d97706;
+  --warn-light: #fffbeb;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --info: #0ea5e9;
+  --info-light: #f0f9ff;
+  --text: #111827;
+  --text2: #374151;
+  --muted: #6b7280;
+  --muted2: #9ca3af;
+  --nav-h: 52px;
+  --sans: 'Inter', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --pros: #059669;
+  --pros-light: #d1fae5;
+  --cons: #dc2626;
+  --cons-light: #fee2e2;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+/* ── NAVBAR ─────────────────────────────────────────────── */
+.navbar {
+  height: var(--nav-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  z-index: 100;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.version-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: white;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+}
+
+.nav-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+.nav-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+.user-badge {
+  font-size: 10px; font-weight: 600;
+  background: var(--accent-light); color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 12px; padding: 2px 10px;
+  display: none;
+}
+.user-badge.visible { display: inline-flex; align-items: center; gap: 4px; }
+
+.case-counter {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0 8px; height: 28px;
+  display: flex; align-items: center; gap: 3px;
+}
+
+.btn {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text2);
+  font-size: 11px; font-family: var(--sans); cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn.success { background: var(--success); border-color: var(--success); color: white; font-weight: 600; }
+
+.jump-wrap { display: flex; align-items: center; gap: 3px; }
+.jump-input {
+  width: 50px; height: 28px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface2); padding: 0 6px;
+  font-size: 11px; font-family: var(--mono); color: var(--text);
+  outline: none; text-align: center;
+}
+
+.progress-badge {
+  font-size: 10px; font-weight: 600;
+  background: var(--success-light); color: var(--success);
+  border: 1px solid #86efac; border-radius: 20px; padding: 2px 8px;
+}
+
+.progress-strip { height: 3px; background: var(--border); flex-shrink: 0; }
+.progress-strip-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #ec4899); width: 0%; }
+
+.workspace { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── UPLOAD & ASSIGN SCREEN ──────────────────────────────── */
+.upload-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px; padding: 40px;
+  overflow-y: auto;
+}
+
+.upload-card {
+  background: var(--surface); border: 2px dashed var(--border2);
+  border-radius: 16px; padding: 40px 60px; text-align: center;
+  cursor: pointer; transition: all 0.2s; position: relative;
+  max-width: 500px; width: 100%;
+}
+.upload-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.upload-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-icon { font-size: 42px; margin-bottom: 12px; }
+.upload-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.upload-desc { font-size: 12px; color: var(--muted); }
+.upload-status { font-size: 11px; color: var(--success); margin-top: 8px; font-weight: 600; }
+
+/* 任务分配面板 */
+.assign-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; max-width: 700px; width: 100%;
+  display: none;
+}
+.assign-panel.visible { display: block; }
+.assign-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.assign-section {
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border);
+}
+.assign-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.assign-label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 4px;
+}
+.assign-input {
+  width: 100%; height: 36px;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 0 12px; font-size: 12px; font-family: var(--sans);
+  color: var(--text); background: var(--surface2); outline: none;
+}
+.assign-input:focus { border-color: var(--accent); background: var(--surface); }
+.assign-textarea {
+  width: 100%; min-height: 80px;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 12px; font-size: 11px; font-family: var(--mono);
+  color: var(--text); background: var(--surface2); outline: none;
+  resize: vertical;
+}
+.assign-hint {
+  font-size: 10px; color: var(--muted); margin-top: 6px; line-height: 1.5;
+}
+
+.assign-upload-card {
+  background: var(--surface2); border: 2px dashed var(--border2);
+  border-radius: 10px; padding: 24px; text-align: center;
+  cursor: pointer; transition: all 0.2s; position: relative;
+}
+.assign-upload-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.assign-upload-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.assign-upload-icon { font-size: 28px; margin-bottom: 8px; }
+.assign-upload-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.assign-upload-desc { font-size: 10px; color: var(--muted); }
+.assign-upload-status { font-size: 11px; color: var(--success); margin-top: 8px; font-weight: 500; text-align: center; }
+
+/* 分配预览 */
+.assign-preview {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; margin-top: 12px;
+  max-height: 200px; overflow-y: auto;
+}
+.assign-preview-title {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  margin-bottom: 8px; text-transform: uppercase;
+}
+.assign-preview-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; margin-bottom: 4px;
+  background: var(--surface); border-radius: 4px;
+  font-size: 11px;
+}
+.assign-preview-item:last-child { margin-bottom: 0; }
+.assign-preview-name {
+  font-weight: 600; color: var(--accent); min-width: 80px;
+}
+.assign-preview-count {
+  font-family: var(--mono); color: var(--text2);
+}
+.assign-preview-ids {
+  flex: 1; color: var(--muted); font-family: var(--mono);
+  font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.assign-actions {
+  display: flex; gap: 10px; margin-top: 16px;
+}
+.btn-assign {
+  flex: 1; height: 40px; border: none; border-radius: 8px;
+  background: var(--accent); color: white; font-size: 13px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-assign:hover { background: var(--accent-dark); }
+.btn-assign:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 用户选择面板 */
+.user-select-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; max-width: 400px; width: 100%;
+  display: none; text-align: center;
+}
+.user-select-panel.visible { display: block; }
+.user-select-title {
+  font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 16px;
+}
+.user-select-list {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin-bottom: 16px;
+}
+.user-select-btn {
+  padding: 10px 20px; border: 2px solid var(--border);
+  border-radius: 8px; background: var(--surface);
+  font-size: 12px; font-weight: 600; color: var(--text2);
+  cursor: pointer; transition: all 0.15s;
+}
+.user-select-btn:hover {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-light);
+}
+
+/* 标签库上传 */
+.taglib-upload-area {
+  padding: 12px 20px;
+  background: var(--surface); border: 1px dashed var(--border2);
+  border-radius: 8px; text-align: center; max-width: 500px; width: 100%;
+}
+.taglib-upload-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.taglib-upload-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 12px; border: 1px solid var(--border);
+  background: var(--surface2); border-radius: 5px;
+  font-size: 11px; color: var(--text2); cursor: pointer;
+}
+.taglib-upload-btn input { display: none; }
+.taglib-status { font-size: 10px; color: var(--success); margin-top: 5px; }
+
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(245,246,248,0.92);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 999; gap: 14px;
+}
+.loading-overlay.visible { display: flex; }
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── CASE LAYOUT ────────────────────────────────────────── */
+.case-layout { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.case-layout.visible { display: flex; }
+
+.hints-bar {
+  height: 26px; background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0;
+}
+.hint-item { font-size: 9px; color: var(--muted); display: flex; align-items: center; gap: 3px; }
+kbd {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 2px; padding: 0 3px; font-size: 8px;
+  font-family: var(--mono); color: var(--text2); line-height: 14px;
+}
+
+.info-bar {
+  height: 36px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0;
+}
+.case-id-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  background: var(--accent); color: white; border-radius: 4px; padding: 2px 8px;
+}
+.type-tag {
+  font-size: 10px; color: var(--info);
+  background: var(--info-light); border: 1px solid #7dd3fc;
+  border-radius: 4px; padding: 1px 6px;
+}
+.title-text {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.saved-flash {
+  font-size: 10px; color: var(--success);
+  opacity: 0; transition: opacity 0.3s;
+}
+.saved-flash.show { opacity: 1; }
+
+.time-spent-badge {
+  font-size: 10px; font-weight: 600;
+  background: var(--warn-light); color: var(--warn);
+  border: 1px solid #fcd34d; border-radius: 4px;
+  padding: 2px 8px; font-family: var(--mono);
+}
+
+.three-cols {
+  flex: 1; display: grid;
+  grid-template-columns: 300px 1fr 440px;
+  overflow: hidden;
+}
+.col {
+  overflow-y: auto; border-right: 1px solid var(--border);
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
+}
+.col:last-child { border-right: none; }
+
+.col-header {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+  padding-bottom: 6px; border-bottom: 2px solid;
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+.col-header.purple { border-color: #8b5cf6; color: #8b5cf6; }
+.col-header.green  { border-color: #10b981; color: #10b981; }
+.col-header.amber  { border-color: #f59e0b; color: #f59e0b; }
+
+/* ── COL 1: Video ── */
+.video-wrap {
+  background: #000; border-radius: 6px; overflow: hidden;
+  aspect-ratio: 16/9; flex-shrink: 0;
+}
+.video-wrap video { width: 100%; height: 100%; display: block; }
+
+.meta-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px;
+}
+.meta-box-title { font-size: 9px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.meta-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; font-size: 10px; }
+.meta-label { color: var(--muted); min-width: 60px; }
+.meta-value { color: var(--text2); flex: 1; }
+.meta-value.mono { font-family: var(--mono); }
+
+.query-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; max-height: 160px; overflow-y: auto;
+}
+.query-box-title { font-size: 9px; font-weight: 700; color: var(--warn); margin-bottom: 6px; }
+.query-text { font-size: 10px; color: var(--text2); line-height: 1.5; white-space: pre-wrap; }
+
+/* ── COL 2: Script Output ── */
+.script-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; margin-bottom: 8px;
+}
+.script-section-head {
+  background: var(--surface2); padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.script-section-head:hover { background: var(--accent-light); }
+.section-icon { font-size: 14px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; }
+.section-badge { font-size: 9px; background: var(--accent-light); color: var(--accent); padding: 1px 6px; border-radius: 10px; }
+.section-toggle { font-size: 9px; color: var(--muted); }
+.script-section-body { padding: 10px; display: none; }
+.script-section-body.visible { display: block; }
+
+.script-field { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
+.script-field:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.field-label { font-size: 9px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.field-value { font-size: 11px; color: var(--text2); line-height: 1.5; background: var(--surface2); border-radius: 4px; padding: 6px 8px; }
+.field-value.timeline { font-family: var(--mono); font-size: 10px; background: var(--info-light); border-left: 3px solid var(--info); }
+.field-value.voiceover { background: var(--warn-light); border-left: 3px solid var(--warn); }
+.field-value.must { background: var(--danger-light); border-left: 3px solid var(--danger); }
+.field-value.maybe { background: var(--success-light); border-left: 3px solid var(--success); }
+
+.timestamp-tag {
+  display: inline-block; font-family: var(--mono); font-size: 9px;
+  background: var(--info); color: white; padding: 1px 4px; border-radius: 3px; margin-right: 4px; cursor: pointer;
+}
+.timestamp-tag:hover { background: var(--accent); }
+
+.duration-analysis {
+  background: linear-gradient(135deg, #fdf4ff, #eff6ff);
+  border: 1px solid #c4b5fd; border-radius: 6px; padding: 10px; margin-bottom: 8px;
+}
+.duration-analysis-title { font-size: 10px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; }
+.duration-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; }
+.duration-label { color: var(--muted); min-width: 85px; }
+.duration-value { font-family: var(--mono); color: var(--text); font-weight: 600; }
+.duration-value.ok { color: var(--success); }
+.duration-value.warn { color: var(--warn); }
+.duration-value.danger { color: var(--danger); }
+
+.package-section {
+  background: linear-gradient(135deg, #fdf4ff, #faf5ff);
+  border: 1px solid #e9d5ff; border-radius: 6px; padding: 10px;
+}
+.package-title { font-size: 10px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; }
+.package-item { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 5px; font-size: 10px; }
+.package-label { color: #9333ea; min-width: 80px; font-weight: 600; }
+.package-value { color: var(--text2); flex: 1; }
+
+/* ── COL 3: Annotation ── */
+.ann-form { display: flex; flex-direction: column; gap: 8px; }
+
+.ann-group {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden;
+}
+.ann-group-head {
+  background: var(--surface2); padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  font-size: 11px; font-weight: 700; color: var(--text);
+}
+.ann-group-head:hover { background: var(--accent-light); }
+.ann-group-head .g-icon { font-size: 12px; }
+.ann-group-head .g-toggle { font-size: 9px; color: var(--muted); margin-left: auto; }
+.ann-group-body { display: none; padding: 8px; }
+.ann-group-body.visible { display: block; }
+
+.ann-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 8px; margin-bottom: 6px;
+}
+.ann-item:last-child { margin-bottom: 0; }
+.ann-item-title { font-size: 10px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.ann-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.ann-label { font-size: 9px; color: var(--muted); min-width: 45px; }
+
+.score-group { display: flex; gap: 2px; }
+.score-btn {
+  width: 22px; height: 22px; border-radius: 4px;
+  border: 1px solid var(--border2); background: var(--surface);
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  cursor: pointer; transition: all 0.1s; color: var(--muted);
+}
+.score-btn:hover { border-color: var(--accent); color: var(--accent); }
+.score-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+.pros-cons-wrap { display: flex; gap: 6px; flex: 1; }
+.pros-cons-col { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.pros-cons-label { font-size: 8px; font-weight: 700; }
+.pros-cons-label.pros { color: var(--pros); }
+.pros-cons-label.cons { color: var(--cons); }
+.note-wrap { display: flex; align-items: center; gap: 3px; }
+.note-tag-btn {
+  width: 18px; height: 20px; border: 1px solid var(--border);
+  background: var(--surface); border-radius: 3px;
+  font-size: 9px; color: var(--muted); cursor: pointer;
+}
+.note-tag-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.note-input {
+  flex: 1; height: 22px;
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 0 6px; font-size: 9px; font-family: var(--sans);
+  color: var(--text); background: var(--surface); outline: none;
+}
+.note-input:focus { border-color: var(--accent); }
+
+.note-textarea {
+  width: 100%; min-height: 50px;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 6px 8px; font-size: 10px; font-family: var(--sans);
+  color: var(--text); background: var(--surface); outline: none; resize: vertical;
+}
+
+.completion-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 8px 10px; background: var(--surface2);
+  border-radius: 6px; border: 1px solid var(--border); margin-top: 6px;
+}
+.clabel { font-size: 10px; color: var(--muted); }
+.btn-save {
+  height: 28px; padding: 0 14px; border: none; border-radius: 5px;
+  background: var(--accent); color: white; font-size: 11px; font-weight: 600;
+  cursor: pointer;
+}
+.btn-save:hover { background: var(--accent-dark); }
+
+/* ── Quote Popup ── */
+.quote-popup {
+  position: fixed; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  padding: 4px; z-index: 1000; display: none; flex-direction: column;
+  min-width: 140px; max-height: 350px; overflow-y: auto;
+}
+.quote-popup.visible { display: flex; }
+.quote-popup-title { font-size: 9px; font-weight: 600; color: var(--muted); padding: 3px 6px; border-bottom: 1px solid var(--border); }
+.quote-btn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border: none; background: transparent;
+  border-radius: 3px; font-size: 10px; color: var(--text2); cursor: pointer;
+}
+.quote-btn:hover { background: var(--accent-light); color: var(--accent); }
+
+/* ── Tag Picker ── */
+.tag-picker {
+  position: fixed; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  z-index: 1002; display: none; flex-direction: column; width: 340px; max-height: 420px;
+}
+.tag-picker.visible { display: flex; }
+.tag-picker-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface2);
+}
+.tag-picker-title { font-size: 11px; font-weight: 700; color: var(--text); }
+.tag-picker-type { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.tag-picker-type.pros { background: var(--pros-light); color: var(--pros); }
+.tag-picker-type.cons { background: var(--cons-light); color: var(--cons); }
+.tag-picker-close { width: 20px; height: 20px; border: none; background: transparent; font-size: 14px; color: var(--muted); cursor: pointer; border-radius: 4px; }
+.tag-picker-close:hover { background: var(--danger); color: white; }
+.tag-picker-tabs { display: flex; gap: 2px; padding: 6px 8px; background: var(--surface2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.tag-tab { padding: 3px 8px; font-size: 9px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+.tag-tab:hover { border-color: var(--accent); color: var(--accent); }
+.tag-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+.tag-picker-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; max-height: 180px; }
+.tag-chip { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 12px; font-size: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; }
+.tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+.tag-chip.selected { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+.tag-picker-custom { display: flex; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--border); background: var(--surface2); }
+.tag-custom-input { flex: 1; height: 26px; border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font-size: 10px; }
+.tag-custom-add { width: 26px; height: 26px; border: 1px solid var(--accent); background: var(--accent); color: white; border-radius: 4px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.tag-picker-footer { padding: 6px 8px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+.tag-picker-confirm { height: 28px; padding: 0 16px; border: none; border-radius: 4px; background: var(--accent); color: white; font-size: 11px; font-weight: 600; cursor: pointer; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: white;
+  padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 500;
+  z-index: 1001; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.visible { opacity: 1; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px; color: var(--muted); }
+.empty-icon { font-size: 36px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+</div>
+
+<div class="quote-popup" id="quotePopup">
+  <div class="quote-popup-title">📝 引用到</div>
+</div>
+
+<div class="tag-picker" id="tagPicker">
+  <div class="tag-picker-header">
+    <span class="tag-picker-title">选择标签</span>
+    <span class="tag-picker-type" id="tagPickerType">优势</span>
+    <button class="tag-picker-close" id="tagPickerClose">✕</button>
+  </div>
+  <div class="tag-picker-tabs" id="tagPickerTabs"></div>
+  <div class="tag-picker-list" id="tagPickerList"></div>
+  <div class="tag-picker-custom">
+    <input type="text" class="tag-custom-input" id="tagCustomInput" placeholder="自定义标签…">
+    <button class="tag-custom-add" id="tagCustomAdd">+</button>
+  </div>
+  <div class="tag-picker-footer">
+    <button class="tag-picker-confirm" id="tagPickerConfirm">确认</button>
+  </div>
+</div>
+
+<div class="navbar">
+  <div class="brand">🎬 视频创作脚本标注 <span class="version-badge">v5</span></div>
+  <div class="nav-sep"></div>
+  <div class="user-badge" id="userBadge">👤 <span id="currentUserName"></span></div>
+  <div class="nav-right">
+    <div class="case-counter"><span id="caseNum">—</span><span class="total">/ <span id="caseTotal">0</span></span></div>
+    <button class="btn" id="btnPrev" disabled>◀</button>
+    <button class="btn" id="btnNext" disabled>▶</button>
+    <div class="jump-wrap">
+      <input type="number" class="jump-input" id="jumpInput" placeholder="#" min="1">
+      <button class="btn" id="btnJump">跳转</button>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="progress-badge" id="progressBadge">0 / 0</div>
+    <button class="btn success" id="btnExport" disabled>⬇ 导出</button>
+    <button class="btn" id="btnReload" style="display:none">↺</button>
+  </div>
+</div>
+<div class="progress-strip"><div class="progress-strip-fill" id="progressFill"></div></div>
+
+<div class="workspace">
+  <div class="upload-screen" id="uploadScreen">
+    <div class="upload-card" id="uploadCard">
+      <input type="file" id="xlsxInput" accept=".xlsx,.xls">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">加载 Excel 文件</div>
+      <div class="upload-desc">Sheet1=case数据 · Sheet2=分工表</div>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+
+    <!-- 分工预览面板 -->
+    <div class="assign-panel" id="assignPanel">
+      <div class="assign-title">📋 分工预览</div>
+      
+      <div class="assign-preview" id="assignPreview" style="display:none">
+        <div class="assign-preview-title">📊 分配情况</div>
+        <div id="assignPreviewList"></div>
+      </div>
+
+      <div class="assign-actions">
+        <button class="btn-assign" id="btnConfirmAssign" disabled style="background:var(--success)">✓ 确认并选择姓名</button>
+      </div>
+    </div>
+
+    <!-- 用户选择面板 -->
+    <div class="user-select-panel" id="userSelectPanel">
+      <div class="user-select-title">👤 请选择您的姓名</div>
+      <div class="user-select-list" id="userSelectList"></div>
+    </div>
+
+    <div class="taglib-upload-area">
+      <div class="taglib-upload-label">🏷️ 标签库（可选）</div>
+      <label class="taglib-upload-btn">
+        📋 上传标签库 (.xlsx)
+        <input type="file" id="tagLibInput" accept=".xlsx,.xls">
+      </label>
+      <div class="taglib-status" id="tagLibStatus"></div>
+    </div>
+  </div>
+
+  <div class="case-layout" id="caseLayout">
+    <div class="hints-bar">
+      <div class="hint-item"><kbd>←</kbd><kbd>→</kbd> 切换</div>
+      <div class="hint-item"><kbd>S</kbd> 保存</div>
+      <div class="hint-item">选中文字可引用</div>
+    </div>
+    <div class="info-bar">
+      <div class="case-id-badge" id="infoCaseId">Case #1</div>
+      <div class="type-tag" id="infoType">—</div>
+      <div class="title-text" id="infoTitle">—</div>
+      <div class="time-spent-badge" id="timeSpentBadge">⏱ <span id="caseTimeSpent">0s</span></div>
+      <div class="saved-flash" id="savedFlash">✅ 已保存</div>
+    </div>
+
+    <div class="three-cols">
+      <div class="col" id="col1">
+        <div class="col-header purple">📽 原视频</div>
+        <div class="video-wrap"><video id="videoPlayer" controls preload="metadata"></video></div>
+        <div class="meta-box">
+          <div class="meta-box-title">📋 基础信息</div>
+          <div class="meta-row"><span class="meta-label">ID:</span><span class="meta-value mono" id="metaId">—</span></div>
+          <div class="meta-row"><span class="meta-label">耗时:</span><span class="meta-value mono" id="metaDuration">—</span></div>
+        </div>
+        <div class="query-box">
+          <div class="query-box-title">📝 请求 Query</div>
+          <div class="query-text" id="queryText">—</div>
+        </div>
+      </div>
+
+      <div class="col" id="col2">
+        <div class="col-header green">📜 模型输出</div>
+        <div id="scriptContainer"><div class="empty-state"><div class="empty-icon">📭</div></div></div>
+      </div>
+
+      <div class="col" id="col3">
+        <div class="col-header amber">✏️ 人工标注评估</div>
+        <div class="ann-form" id="annForm"></div>
+        <div class="completion-row">
+          <div class="clabel" id="clabel">待标注</div>
+          <button class="btn-save" id="btnSave">💾 保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已保存</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// 标注维度配置
+// ═══════════════════════════════════════════════════════════
+const ANNOTATION_SCHEMA = [
+  {
+    id: 'visual', name: '视觉', icon: '👁', scoreType: '0-4',
+    fields: [
+      { id: 'no_hallucination', name: '视觉无幻觉' },
+      { id: 'timing_precision', name: '时序定位精度' },
+      { id: 'causal_reasoning', name: '因果逻辑推理' },
+      { id: 'content_understanding', name: '优质内容理解' },
+      { id: 'av_consistency', name: '音画一致性' },
+      { id: 'camera_language', name: '镜头语言运用' }
+    ]
+  },
+  {
+    id: 'text', name: '文本', icon: '📝', scoreType: '0-4',
+    fields: [
+      { id: 'content_quality', name: '内容创作质量满意度' },
+      { id: 'structure_quality', name: '字段结构化程度' }
+    ]
+  },
+  {
+    id: 'other', name: '其他', icon: '⚙️', scoreType: '0-1',
+    fields: [
+      { id: 'instruction_follow', name: '指令遵循度' },
+      { id: 'reference_persuasion', name: '参考说服力(指令部分)' },
+      { id: 'content_compliance', name: '内容合规' },
+      { id: 'fact_accuracy', name: '事实是否错误或过时' }
+    ]
+  }
+];
+
+const CONTENT_SECTIONS = [
+  { key: '情感定位/开篇Hook', icon: '🎣', name: '开篇Hook' },
+  { key: '行业地位/背景介绍', icon: '📖', name: '背景介绍' },
+  { key: '主线剧情_起源/冲突建立', icon: '⚡', name: '冲突建立' },
+  { key: '主线剧情_发展/守护与对抗', icon: '🔥', name: '剧情发展' },
+  { key: '高光爆发/情感巅峰', icon: '💥', name: '情感巅峰' },
+  { key: '价值探讨/情感升华', icon: '💎', name: '价值升华' },
+  { key: '悬念预告/结尾互动', icon: '🎬', name: '结尾互动' }
+];
+
+// ═══════════════════════════════════════════════════════════
+// 标签库 (默认：标签库-2.0)
+// ═══════════════════════════════════════════════════════════
+let TAG_LIBRARY = {
+  '视觉': ['视觉-画面识别-核心物体', '视觉-画面识别-核心动作', '视觉-画面识别-核心表情', '视觉-画面识别-次要细节', '视觉-画面识别-场景识别', '视觉-音频识别-语音归属', '视觉-音频识别-语气重音'],
+  '时序定位': ['时序定位-时间戳-画面对应', '时序定位-时间戳-时间戳呈现', '时序定位-时长划分-总时长', '时序定位-时长划分-时间段遗漏', '时序定位-时长划分-截取不准（超前/滞后）', '时序定位-时长划分-事件顺序'],
+  '因果推理': ['因果推理-动机推理-核心动机', '因果推理-动机推理-隐性动机', '因果推理-关系推理-显性冲突', '因果推理-关系推理-隐性互动', '因果推理-立场推理-核心立场', '因果推理-立场推理-立场变化', '因果推理-隐喻推理-镜头隐喻', '因果推理-隐喻推理-剧情因果'],
+  '内容理解': ['内容理解-高光识别-核心高光', '内容理解-高光识别-高光判断', '内容理解-剧情演变-起因', '内容理解-剧情演变-高潮', '内容理解-剧情演变-结局', '内容理解-话题切割-核心话题', '内容理解-话题切割-话题边界'],
+  '观点叙事': ['观点叙事-创新性-内容新颖', '观点叙事-鲜明性-内容鲜明', '观点叙事-深刻性-内容深入', '观点叙事-统一性-内容统一', '观点叙事-发散性-多角度联想', '观点叙事-具象性-画面感叙事', '观点叙事-类比性-生活化类比'],
+  '内容结构': ['内容结构-开场节奏-黄金3秒', '内容结构-逻辑层次-层次清晰', '内容结构-论证支撑-论据充分', '内容结构-记忆点设计-金句记忆'],
+  '表达风格': ['表达风格-语言风格-口语化', '表达风格-语言风格-文采化'],
+  '人设互动': ['人设互动-人设塑造-人设体现', '人设互动-钩子设计-内容钩子', '人设互动-互动设计-引导有效'],
+  '二创遵循': ['二创遵循-世界观-设定遵循', '二创遵循-人设-角色遵循', '二创遵循-剧情-主线遵循', '二创遵循-高光-高光遵循'],
+  '语义对齐': ['语义对齐-实体对齐-核心实体', '语义对齐-动作对齐-动作事件', '语义对齐-场景对齐-场景时空'],
+  '情绪氛围': ['情绪氛围-色调-色调匹配', '情绪氛围-光影-光影匹配', '情绪氛围-表演-表演匹配'],
+  '视听节奏': ['视听节奏-语速适配-文案匹配（说明文案过长/过短）'],
+  '字段结构': ['字段结构-格式-字段完整', '字段结构-格式-格式规范', '字段结构-语义准确-含义', '字段结构-语义准确-逻辑'],
+  '镜头语言': ['镜头语言-转场-转场景别', '镜头语言-特写-特写慢放', '镜头语言-卡点-卡点适配']
+};
+
+let allRows = [];           // 所有数据
+let rows = [];              // 当前用户可见的数据
+let currentIdx = 0;
+let annotations = {};
+let currentUser = null;     // 当前用户
+let userAssignments = {};   // 用户分配 {userName: [ids]}
+let assignmentMap = {};     // 每条数据分配给谁 {id: userName}
+
+// 标签选择器状态
+let currentTagTarget = null;
+let currentTagType = 'pros';
+let currentTagCategory = null;
+let selectedTags = [];
+let selectedText = '';
+
+// 作业时长记录
+let caseTimers = {};          // 每个 case 的累计作业时长（秒）
+let caseStartTime = null;     // 当前 case 开始作业的时间戳
+let currentCaseHasAction = false; // 当前 case 是否有操作（用于判断是否计时）
+
+// 计时相关函数
+function startCaseTimer() {
+  if (!currentCaseHasAction && rows[currentIdx]) {
+    currentCaseHasAction = true;
+    caseStartTime = Date.now();
+  }
+}
+
+function pauseCaseTimer() {
+  if (currentCaseHasAction && caseStartTime && rows[currentIdx]) {
+    const id = rows[currentIdx].id;
+    const elapsed = Math.round((Date.now() - caseStartTime) / 1000);
+    caseTimers[id] = (caseTimers[id] || 0) + elapsed;
+    caseStartTime = null;
+  }
+}
+
+function stopAndSaveCaseTimer() {
+  if (rows[currentIdx]) {
+    const id = rows[currentIdx].id;
+    if (currentCaseHasAction && caseStartTime) {
+      const elapsed = Math.round((Date.now() - caseStartTime) / 1000);
+      caseTimers[id] = (caseTimers[id] || 0) + elapsed;
+    }
+    caseStartTime = null;
+    currentCaseHasAction = false;
+  }
+}
+
+function resetCaseTimerState() {
+  caseStartTime = null;
+  currentCaseHasAction = false;
+}
+
+function formatDuration(seconds) {
+  if (!seconds || seconds < 0) return '0s';
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return `${mins}m${secs}s`;
+  const hours = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return `${hours}h${remMins}m${secs}s`;
+}
+
+function getCaseTimeSpent(id) {
+  return caseTimers[id] || 0;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 任务分配功能
+// ═══════════════════════════════════════════════════════════
+function parseNames(input) {
+  if (!input) return [];
+  return input.split(/[,，\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+}
+
+function parsePinnedAssignments(input) {
+  const result = {};
+  if (!input) return result;
+  const lines = input.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^\s*(\d+)\s*[=＝:：]\s*(.+?)\s*$/);
+    if (match) {
+      const caseId = match[1];
+      const name = match[2].trim();
+      if (name) result[caseId] = name;
+    }
+  }
+  return result;
+}
+
+function generateAssignment(names, pinnedMap) {
+  if (!names.length || !allRows.length) return {};
+  
+  const assignments = {};
+  names.forEach(name => assignments[name] = []);
+  
+  const allIds = allRows.map(r => r.id);
+  const pinnedIds = new Set();
+  
+  // 1. 先处理置顶分配
+  for (const [id, name] of Object.entries(pinnedMap)) {
+    if (allIds.includes(id) && names.includes(name)) {
+      assignments[name].push(id);
+      pinnedIds.add(id);
+    }
+  }
+  
+  // 2. 剩余的随机均衡分配
+  const remainingIds = allIds.filter(id => !pinnedIds.has(id));
+  
+  // 打乱顺序
+  for (let i = remainingIds.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remainingIds[i], remainingIds[j]] = [remainingIds[j], remainingIds[i]];
+  }
+  
+  // 均衡分配（考虑已有的置顶分配数量）
+  let idx = 0;
+  while (remainingIds.length > 0) {
+    // 找出当前任务最少的人
+    let minCount = Infinity;
+    let minNames = [];
+    for (const name of names) {
+      if (assignments[name].length < minCount) {
+        minCount = assignments[name].length;
+        minNames = [name];
+      } else if (assignments[name].length === minCount) {
+        minNames.push(name);
+      }
+    }
+    // 从最少的人中随机选一个
+    const targetName = minNames[Math.floor(Math.random() * minNames.length)];
+    assignments[targetName].push(remainingIds.shift());
+  }
+  
+  return assignments;
+}
+
+function renderAssignmentPreview(assignments) {
+  const preview = document.getElementById('assignPreview');
+  const list = document.getElementById('assignPreviewList');
+  
+  if (!Object.keys(assignments).length) {
+    preview.style.display = 'none';
+    return;
+  }
+  
+  preview.style.display = 'block';
+  let html = '';
+  
+  for (const [name, ids] of Object.entries(assignments)) {
+    const idsStr = ids.slice(0, 10).join(', ') + (ids.length > 10 ? '...' : '');
+    html += `<div class="assign-preview-item">
+      <span class="assign-preview-name">${esc(name)}</span>
+      <span class="assign-preview-count">${ids.length} 条</span>
+      <span class="assign-preview-ids">IDs: ${idsStr}</span>
+    </div>`;
+  }
+  
+  list.innerHTML = html;
+}
+
+document.getElementById('btnConfirmAssign').addEventListener('click', () => {
+  if (!Object.keys(userAssignments).length) return;
+  
+  // 构建反向映射
+  assignmentMap = {};
+  for (const [name, ids] of Object.entries(userAssignments)) {
+    for (const id of ids) {
+      assignmentMap[id] = name;
+    }
+  }
+  
+  // 显示用户选择面板
+  document.getElementById('assignPanel').classList.remove('visible');
+  showUserSelectPanel();
+});
+
+function showUserSelectPanel() {
+  const panel = document.getElementById('userSelectPanel');
+  const list = document.getElementById('userSelectList');
+  
+  const names = Object.keys(userAssignments);
+  list.innerHTML = names.map(name => 
+    `<button class="user-select-btn" data-name="${esc(name)}">${esc(name)} (${userAssignments[name].length}条)</button>`
+  ).join('');
+  
+  panel.classList.add('visible');
+}
+
+document.getElementById('userSelectList').addEventListener('click', (e) => {
+  const btn = e.target.closest('.user-select-btn');
+  if (!btn) return;
+  
+  currentUser = btn.dataset.name;
+  document.getElementById('currentUserName').textContent = currentUser;
+  document.getElementById('userBadge').classList.add('visible');
+  document.getElementById('userSelectPanel').classList.remove('visible');
+  
+  // 筛选当前用户的数据
+  const userIds = userAssignments[currentUser] || [];
+  rows = allRows.filter(r => userIds.includes(r.id));
+  
+  if (!rows.length) {
+    showToast('该用户没有分配到任务');
+    return;
+  }
+  
+  initTool();
+});
+
+// ═══════════════════════════════════════════════════════════
+// 文件加载
+// ═══════════════════════════════════════════════════════════
+const xlsxInput = document.getElementById('xlsxInput');
+
+document.getElementById('uploadCard').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('uploadCard').addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+xlsxInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+document.getElementById('btnReload').addEventListener('click', () => {
+  allRows = []; rows = []; annotations = {}; currentUser = null; userAssignments = {}; assignmentMap = {};
+  document.getElementById('caseLayout').classList.remove('visible');
+  document.getElementById('uploadScreen').style.display = 'flex';
+  document.getElementById('assignPanel').classList.remove('visible');
+  document.getElementById('userSelectPanel').classList.remove('visible');
+  document.getElementById('userBadge').classList.remove('visible');
+  document.getElementById('uploadStatus').textContent = '';
+  document.getElementById('btnReload').style.display = 'none';
+  document.getElementById('btnExport').disabled = true;
+  xlsxInput.value = '';
+});
+
+async function loadFile(file) {
+  document.getElementById('loadingOverlay').classList.add('visible');
+  
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetNames = workbook.SheetNames;
+    
+    // Sheet1: case 数据
+    const caseSheet = workbook.Sheets[sheetNames[0]];
+    const caseData = XLSX.utils.sheet_to_json(caseSheet);
+    
+    allRows = caseData.map((row, idx) => ({
+      id: String(row['ID'] || idx + 1),
+      videoUrl: row['视频链接'] || '',
+      query: row['请求query'] || '',
+      type: row['类型'] || '',
+      modelOutput: row['模型回复'] || '',
+      duration: row['请求耗时'] || ''
+    }));
+    
+    if (!allRows.length) {
+      document.getElementById('loadingOverlay').classList.remove('visible');
+      showToast('Sheet1 无有效数据');
+      return;
+    }
+    
+    // Sheet2: 分工表
+    userAssignments = {};
+    assignmentMap = {};
+    
+    if (sheetNames.length >= 2) {
+      const assignSheet = workbook.Sheets[sheetNames[1]];
+      const assignData = XLSX.utils.sheet_to_json(assignSheet);
+      
+      assignData.forEach(row => {
+        const id = String(row['ID'] || '').trim();
+        const assignee = String(row['分工'] || '').trim();
+        if (id && assignee) {
+          assignmentMap[id] = assignee;
+          if (!userAssignments[assignee]) userAssignments[assignee] = [];
+          userAssignments[assignee].push(id);
+        }
+      });
+    }
+    
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    
+    const names = Object.keys(userAssignments);
+    if (names.length > 0) {
+      // 检查分工表的 ID 是否与原始数据匹配
+      const dataIds = new Set(allRows.map(r => r.id));
+      const assignedIds = Object.keys(assignmentMap);
+      const matchedCount = assignedIds.filter(id => dataIds.has(id)).length;
+      
+      document.getElementById('uploadStatus').innerHTML = `✓ 已加载 <b>${allRows.length}</b> 条数据，<b>${names.length}</b> 人分工（匹配 ${matchedCount} 条）`;
+      renderAssignmentPreview(userAssignments);
+      document.getElementById('assignPanel').classList.add('visible');
+      document.getElementById('btnConfirmAssign').disabled = false;
+    } else {
+      document.getElementById('uploadStatus').innerHTML = `✓ 已加载 ${allRows.length} 条数据<br><span style="color:var(--warn)">⚠ 未找到分工表（Sheet2需包含 ID 和 分工 列）</span>`;
+      // 无分工表时，所有数据分给一个默认用户
+      userAssignments['默认'] = allRows.map(r => r.id);
+      renderAssignmentPreview(userAssignments);
+      document.getElementById('assignPanel').classList.add('visible');
+      document.getElementById('btnConfirmAssign').disabled = false;
+    }
+    
+  } catch (err) {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('解析失败: ' + err.message);
+  }
+}
+
+function initTool() {
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('caseLayout').classList.add('visible');
+  document.getElementById('caseTotal').textContent = rows.length;
+  document.getElementById('btnExport').disabled = false;
+  document.getElementById('btnReload').style.display = 'flex';
+  document.getElementById('btnPrev').disabled = false;
+  document.getElementById('btnNext').disabled = false;
+  buildAnnotationForm();
+  currentIdx = 0;
+  renderCase(0);
+  updateProgress();
+}
+
+// ═══════════════════════════════════════════════════════════
+// 生成标注表单
+// ═══════════════════════════════════════════════════════════
+function buildAnnotationForm() {
+  const container = document.getElementById('annForm');
+  let html = '';
+  updateQuotePopup();
+  
+  ANNOTATION_SCHEMA.forEach(group => {
+    const is01 = group.scoreType === '0-1';
+    html += `<div class="ann-group" id="grp_${group.id}">
+      <div class="ann-group-head" data-group="${group.id}">
+        <span class="g-icon">${group.icon}</span><span>${group.name}</span>
+        <span style="font-size:9px;color:var(--muted);margin-left:4px">(${group.scoreType})</span>
+        <span class="g-toggle">▼</span>
+      </div>
+      <div class="ann-group-body visible" id="body_${group.id}">`;
+    
+    group.fields.forEach(field => {
+      const fid = `${group.id}__${field.id}`;
+      html += `<div class="ann-item" id="item_${fid}">
+        <div class="ann-item-title">${field.name}</div>
+        <div class="ann-row">
+          <span class="ann-label">评分</span>
+          <div class="score-group">`;
+      if (is01) {
+        html += `<button class="score-btn" data-field="${fid}" data-score="0">0</button>
+                 <button class="score-btn" data-field="${fid}" data-score="1">1</button>`;
+      } else {
+        for (let i = 0; i <= 4; i++) {
+          html += `<button class="score-btn" data-field="${fid}" data-score="${i}">${i}</button>`;
+        }
+      }
+      html += `</div></div>
+        <div class="ann-row">
+          <div class="pros-cons-wrap">
+            <div class="pros-cons-col">
+              <div class="pros-cons-label pros">✅ 优势</div>
+              <div class="note-wrap">
+                <button class="note-tag-btn" data-field="${fid}" data-type="pros">🏷️</button>
+                <input class="note-input" id="note_${fid}_pros" placeholder="优势…">
+              </div>
+            </div>
+            <div class="pros-cons-col">
+              <div class="pros-cons-label cons">❌ 劣势</div>
+              <div class="note-wrap">
+                <button class="note-tag-btn" data-field="${fid}" data-type="cons">🏷️</button>
+                <input class="note-input" id="note_${fid}_cons" placeholder="劣势…">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  
+  html += `<div class="ann-group">
+    <div class="ann-group-head" data-group="summary"><span class="g-icon">📋</span><span>总体备注</span><span class="g-toggle">▼</span></div>
+    <div class="ann-group-body visible" id="body_summary">
+      <textarea class="note-textarea" id="note_summary" placeholder="整体评价…"></textarea>
+    </div>
+  </div>`;
+  
+  container.innerHTML = html;
+  
+  document.querySelectorAll('.ann-group-head').forEach(head => {
+    head.addEventListener('click', () => {
+      const gid = head.dataset.group;
+      const body = document.getElementById(`body_${gid}`);
+      const toggle = head.querySelector('.g-toggle');
+      body.classList.toggle('visible');
+      toggle.textContent = body.classList.contains('visible') ? '▼' : '▶';
+    });
+  });
+  
+  document.querySelectorAll('.note-tag-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showTagPicker(btn.nextElementSibling, btn.dataset.field, btn.dataset.type);
+    });
+  });
+}
+
+function updateQuotePopup() {
+  const popup = document.getElementById('quotePopup');
+  let btns = '<div class="quote-popup-title">📝 引用到</div>';
+  ANNOTATION_SCHEMA.forEach(g => {
+    g.fields.forEach(f => {
+      btns += `<button class="quote-btn" data-target="${g.id}__${f.id}">📌 ${f.name}</button>`;
+    });
+  });
+  popup.innerHTML = btns;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 标签选择器
+// ═══════════════════════════════════════════════════════════
+function showTagPicker(inputEl, fieldId, type) {
+  currentTagTarget = inputEl;
+  currentTagType = type;
+  selectedTags = [];
+  
+  document.getElementById('tagPickerType').textContent = type === 'pros' ? '优势' : '劣势';
+  document.getElementById('tagPickerType').className = `tag-picker-type ${type}`;
+  
+  const categories = Object.keys(TAG_LIBRARY);
+  currentTagCategory = categories[0];
+  document.getElementById('tagPickerTabs').innerHTML = categories.map(cat => 
+    `<span class="tag-tab ${cat === currentTagCategory ? 'active' : ''}" data-cat="${cat}">${cat}</span>`
+  ).join('');
+  renderTagList(currentTagCategory);
+  
+  const rect = inputEl.getBoundingClientRect();
+  let top = rect.bottom + 4, left = rect.left - 120;
+  if (top + 380 > window.innerHeight) top = rect.top - 390;
+  if (left + 340 > window.innerWidth) left = window.innerWidth - 350;
+  if (left < 10) left = 10;
+  
+  document.getElementById('tagPicker').style.top = top + 'px';
+  document.getElementById('tagPicker').style.left = left + 'px';
+  document.getElementById('tagPicker').classList.add('visible');
+}
+
+function renderTagList(category) {
+  const tags = TAG_LIBRARY[category] || [];
+  const list = document.getElementById('tagPickerList');
+  list.innerHTML = tags.length ? tags.map(t => 
+    `<span class="tag-chip ${selectedTags.includes(t) ? 'selected' : ''}" data-tag="${esc(t)}">${esc(t.split('-').pop())}</span>`
+  ).join('') : '<div style="padding:10px;color:var(--muted)">暂无</div>';
+}
+
+function hideTagPicker() {
+  document.getElementById('tagPicker').classList.remove('visible');
+  currentTagTarget = null;
+  selectedTags = [];
+}
+
+document.getElementById('tagPickerTabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('.tag-tab');
+  if (!tab) return;
+  currentTagCategory = tab.dataset.cat;
+  document.querySelectorAll('.tag-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  renderTagList(currentTagCategory);
+});
+
+document.getElementById('tagPickerList').addEventListener('click', (e) => {
+  const chip = e.target.closest('.tag-chip');
+  if (!chip) return;
+  const tag = chip.dataset.tag;
+  chip.classList.toggle('selected');
+  if (chip.classList.contains('selected')) {
+    if (!selectedTags.includes(tag)) selectedTags.push(tag);
+  } else {
+    selectedTags = selectedTags.filter(t => t !== tag);
+  }
+});
+
+document.getElementById('tagCustomAdd').addEventListener('click', () => {
+  const customTag = document.getElementById('tagCustomInput').value.trim();
+  if (!customTag) return;
+  if (!selectedTags.includes(customTag)) selectedTags.push(customTag);
+  if (currentTagCategory && TAG_LIBRARY[currentTagCategory] && !TAG_LIBRARY[currentTagCategory].includes(customTag)) {
+    TAG_LIBRARY[currentTagCategory].push(customTag);
+  }
+  renderTagList(currentTagCategory);
+  document.getElementById('tagCustomInput').value = '';
+});
+
+document.getElementById('tagCustomInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('tagCustomAdd').click(); }
+});
+
+document.getElementById('tagPickerConfirm').addEventListener('click', () => {
+  if (!currentTagTarget || !selectedTags.length) { hideTagPicker(); return; }
+  const formattedTags = selectedTags.map(t => `「${t}」`).join(' ');
+  const currentVal = currentTagTarget.value.trim();
+  currentTagTarget.value = currentVal ? currentVal + ' ' + formattedTags : formattedTags;
+  hideTagPicker();
+  showToast(`✓ 已添加 ${selectedTags.length} 个标签`);
+});
+
+document.getElementById('tagPickerClose').addEventListener('click', hideTagPicker);
+document.addEventListener('mousedown', (e) => {
+  const picker = document.getElementById('tagPicker');
+  if (picker.classList.contains('visible') && !picker.contains(e.target) && !e.target.classList.contains('note-tag-btn')) hideTagPicker();
+});
+
+// ═══════════════════════════════════════════════════════════
+// 文本引用
+// ═══════════════════════════════════════════════════════════
+const quotePopup = document.getElementById('quotePopup');
+document.getElementById('col2').addEventListener('mouseup', () => {
+  setTimeout(() => {
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+    if (text && text.length > 0) {
+      selectedText = text;
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      let top = rect.bottom + 5, left = rect.left + (rect.width / 2) - 70;
+      if (top + 300 > window.innerHeight) top = rect.top - 310;
+      if (left < 10) left = 10;
+      if (left + 150 > window.innerWidth) left = window.innerWidth - 160;
+      quotePopup.style.top = top + 'px';
+      quotePopup.style.left = left + 'px';
+      quotePopup.classList.add('visible');
+    } else {
+      quotePopup.classList.remove('visible');
+    }
+  }, 10);
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (!quotePopup.contains(e.target) && !e.target.closest('#col2')) quotePopup.classList.remove('visible');
+});
+
+quotePopup.addEventListener('click', (e) => {
+  const btn = e.target.closest('.quote-btn');
+  if (!btn || !selectedText) return;
+  const target = btn.dataset.target;
+  const prosNote = document.getElementById(`note_${target}_pros`);
+  if (prosNote) {
+    const quoted = `"${selectedText}"`;
+    prosNote.value = prosNote.value ? prosNote.value + ' ' + quoted : quoted;
+  }
+  const groupId = target.split('__')[0];
+  const body = document.getElementById(`body_${groupId}`);
+  if (body && !body.classList.contains('visible')) {
+    body.classList.add('visible');
+    const toggle = document.querySelector(`[data-group="${groupId}"] .g-toggle`);
+    if (toggle) toggle.textContent = '▼';
+  }
+  showToast('✓ 已引用');
+  quotePopup.classList.remove('visible');
+  window.getSelection().removeAllRanges();
+  selectedText = '';
+});
+
+document.getElementById('col2').addEventListener('scroll', () => quotePopup.classList.remove('visible'));
+
+// ═══════════════════════════════════════════════════════════
+// 标签库上传
+// ═══════════════════════════════════════════════════════════
+document.getElementById('tagLibInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('tagLibStatus');
+  statusEl.textContent = '解析中...';
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(sheet);
+    const newTagLib = {};
+    jsonData.forEach(row => {
+      const dim1 = (row['一级维度'] || '').trim();
+      const tag = (row['三级标签'] || '').trim();
+      if (dim1 && tag) {
+        if (!newTagLib[dim1]) newTagLib[dim1] = [];
+        if (!newTagLib[dim1].includes(tag)) newTagLib[dim1].push(tag);
+      }
+    });
+    TAG_LIBRARY = newTagLib;
+    statusEl.textContent = `✓ 已加载 ${Object.keys(newTagLib).length} 个分类`;
+    statusEl.style.color = 'var(--success)';
+  } catch (err) {
+    statusEl.textContent = '✕ 解析失败';
+    statusEl.style.color = 'var(--danger)';
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// 渲染案例
+// ═══════════════════════════════════════════════════════════
+function renderCase(idx) {
+  if (idx < 0 || idx >= rows.length) return;
+  currentIdx = idx;
+  const d = rows[idx];
+
+  document.getElementById('infoCaseId').textContent = `Case #${d.id}`;
+  document.getElementById('caseNum').textContent = idx + 1;
+  document.getElementById('infoType').textContent = d.type || '—';
+  document.getElementById('infoTitle').textContent = `ID: ${d.id}`;
+  document.getElementById('metaId').textContent = d.id;
+  document.getElementById('metaDuration').textContent = d.duration ? `${d.duration}s` : '—';
+  document.getElementById('btnPrev').disabled = idx === 0;
+  document.getElementById('btnNext').disabled = idx === rows.length - 1;
+
+  const videoEl = document.getElementById('videoPlayer');
+  if (d.videoUrl) { videoEl.src = d.videoUrl; videoEl.load(); } else { videoEl.src = ''; }
+  document.getElementById('queryText').textContent = d.query || '—';
+  renderScriptOutput(d.modelOutput);
+  loadAnnotation(d.id);
+  updateTimeDisplay();
+
+  ['col1','col2','col3'].forEach(id => document.getElementById(id).scrollTop = 0);
+  document.getElementById('savedFlash').classList.remove('show');
+}
+
+function renderScriptOutput(rawOutput) {
+  const container = document.getElementById('scriptContainer');
+  if (!rawOutput?.trim()) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div></div>';
+    return;
+  }
+  const parsed = parseModelOutput(rawOutput);
+  if (!parsed) {
+    container.innerHTML = `<div class="script-section"><div class="script-section-body visible"><pre style="white-space:pre-wrap;font-size:10px">${esc(rawOutput)}</pre></div></div>`;
+    return;
+  }
+  let html = `<div class="script-section">
+    <div class="script-section-head" onclick="toggleSection(this)">
+      <span class="section-icon">🎬</span><span class="section-title">整体规划</span><span class="section-toggle">▼</span>
+    </div>
+    <div class="script-section-body visible">
+      <div class="script-field"><div class="field-label">⏱ 整体时长</div><div class="field-value timeline">${esc(parsed['整体时长'] || '—')}</div></div>
+      <div class="script-field"><div class="field-label">🎙 解说人设</div><div class="field-value">${esc(parsed['解说人设'] || '—')}</div></div>
+    </div>
+  </div>`;
+  const structure = parsed['内容结构'] || {};
+  const sectionIcons = ['🎣', '📖', '⚡', '🔥', '💥', '💎', '🎬', '🎯', '📌', '🌟'];
+  let sectionIdx = 0;
+  
+  Object.keys(structure).forEach(sectionKey => {
+    const content = structure[sectionKey];
+    if (!content || typeof content !== 'object') return;
+    
+    const icon = sectionIcons[sectionIdx % sectionIcons.length];
+    sectionIdx++;
+    
+    // 获取字段值，兼容有无空格的键名
+    const getField = (obj, ...keys) => {
+      for (const k of keys) {
+        if (obj[k] !== undefined) return obj[k];
+      }
+      return null;
+    };
+    
+    const timeline = getField(content, '脚本时间轴');
+    const editPoint = getField(content, '剪辑要点');
+    const mustScene = getField(content, 'Must画面建议', 'Must 画面建议');
+    const maybeScene = getField(content, 'Maybe画面建议', 'Maybe 画面建议');
+    const voiceover = getField(content, '画外音文案');
+    const soundEffect = getField(content, '音效建议');
+    const avMode = getField(content, '音画配合模式');
+    
+    // 计算时长分析
+    const durationAnalysis = calculateDurationAnalysis(timeline, mustScene, maybeScene, voiceover, avMode);
+    
+    html += `<div class="script-section">
+      <div class="script-section-head" onclick="toggleSection(this)">
+        <span class="section-icon">${icon}</span><span class="section-title">${esc(sectionKey)}</span>
+        <span class="section-badge">${esc(timeline || '')}</span><span class="section-toggle">▼</span>
+      </div>
+      <div class="script-section-body visible">`;
+    
+    // 添加时长分析面板
+    if (durationAnalysis) {
+      html += `<div class="duration-analysis">
+        <div class="duration-analysis-title">📊 时长分析</div>
+        <div class="duration-row"><span class="duration-label">脚本时长:</span><span class="duration-value">${durationAnalysis.scriptDurationStr}</span></div>
+        <div class="duration-row"><span class="duration-label">画面时长:</span><span class="duration-value">${durationAnalysis.sceneDurationStr} (Must:${durationAnalysis.mustDurationStr}, Maybe:${durationAnalysis.maybeDurationStr})</span></div>
+        <div class="duration-row"><span class="duration-label">文案:</span><span class="duration-value">${durationAnalysis.voiceoverChars}字 ≈ ${durationAnalysis.voiceoverDurationStr}</span></div>
+        <div class="duration-row"><span class="duration-label">模式:</span><span class="duration-value"><b>${durationAnalysis.modeLabel}</b></span></div>
+        <div class="duration-row"><span class="duration-label">匹配:</span><span class="duration-value ${durationAnalysis.matchClass}">${durationAnalysis.matchResult}</span></div>
+      </div>`;
+    }
+    
+    if (editPoint) html += `<div class="script-field"><div class="field-label">✂️ 剪辑要点</div><div class="field-value">${esc(editPoint)}</div></div>`;
+    if (mustScene) html += `<div class="script-field"><div class="field-label">🔴 Must画面</div><div class="field-value must">${formatTimestamps(mustScene)}</div></div>`;
+    if (maybeScene) html += `<div class="script-field"><div class="field-label">🟢 Maybe画面</div><div class="field-value maybe">${formatTimestamps(maybeScene)}</div></div>`;
+    if (voiceover) html += `<div class="script-field"><div class="field-label">📝 画外音 (${countChineseChars(voiceover)}字)</div><div class="field-value voiceover">${esc(voiceover)}</div></div>`;
+    if (soundEffect) html += `<div class="script-field"><div class="field-label">🔊 音效</div><div class="field-value">${esc(soundEffect)}</div></div>`;
+    if (avMode) html += `<div class="script-field"><div class="field-label">🎞 音画模式</div><div class="field-value">${esc(avMode)}</div></div>`;
+    html += `</div></div>`;
+  });
+  const pkg = parsed['视频包装规范'];
+  if (pkg && typeof pkg === 'object') {
+    html += `<div class="package-section"><div class="package-title">🎨 包装规范</div>`;
+    Object.keys(pkg).forEach(key => {
+      const val = pkg[key];
+      if (val && typeof val === 'string') {
+        html += `<div class="package-item"><span class="package-label">${esc(key)}:</span><span class="package-value">${esc(val)}</span></div>`;
+      }
+    });
+    html += `</div>`;
+  }
+  container.innerHTML = html;
+}
+
+function parseModelOutput(raw) {
+  if (!raw || raw === 'nan' || raw === 'NaN' || raw === 'null') return null;
+  
+  let s = String(raw).trim();
+  
+  // 0. 处理Excel双引号转义：先去除最外层引号，再将 "" 替换为 "
+  if (s.startsWith('"') && s.endsWith('"')) {
+    s = s.slice(1, -1);
+  }
+  s = s.replace(/""/g, '"');
+  
+  // 移除 markdown 代码块标记
+  s = s.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  
+  // 第一次尝试：直接解析
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // === 综合修复：逐行处理引号转义和逗号补充 ===
+  let lines = s.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    let trimmed = line.trimEnd();
+    
+    // 1. 先处理字符串值内部的未转义双引号
+    const colonIdx = trimmed.indexOf('": "');
+    if (colonIdx >= 0) {
+      const afterColon = colonIdx + 4;
+      let endQuoteIdx = -1;
+      let hasTailComma = false;
+      
+      if (trimmed.endsWith('",')) {
+        endQuoteIdx = trimmed.length - 2;
+        hasTailComma = true;
+      } else if (trimmed.endsWith('"')) {
+        endQuoteIdx = trimmed.length - 1;
+      }
+      
+      if (endQuoteIdx > afterColon) {
+        const valueContent = trimmed.substring(afterColon, endQuoteIdx);
+        let hasUnescaped = false;
+        for (let j = 0; j < valueContent.length; j++) {
+          if (valueContent[j] === '"' && (j === 0 || valueContent[j-1] !== '\\')) {
+            hasUnescaped = true;
+            break;
+          }
+        }
+        
+        if (hasUnescaped) {
+          let escaped = '';
+          for (let j = 0; j < valueContent.length; j++) {
+            if (valueContent[j] === '"' && (j === 0 || valueContent[j-1] !== '\\')) {
+              escaped += '\\"';
+            } else {
+              escaped += valueContent[j];
+            }
+          }
+          const prefix = trimmed.substring(0, afterColon);
+          trimmed = prefix + escaped + '"' + (hasTailComma ? ',' : '');
+          lines[i] = trimmed;
+        }
+      }
+    }
+    
+    // 2. 再处理逗号补充（需要检查下一行）
+    if (i < lines.length - 1) {
+      trimmed = lines[i].trimEnd(); // 重新获取（可能被修改）
+      const nextLine = lines[i + 1];
+      const nextTrimmed = nextLine.trim();
+      
+      if (trimmed && nextTrimmed) {
+        const endsWithValue = /["\}\]\d]$/.test(trimmed);
+        const notEndsWithComma = !trimmed.endsWith(',');
+        const notEndsWithOpen = !trimmed.endsWith('{') && !trimmed.endsWith('[') && !trimmed.endsWith(':');
+        const nextIsKeyOrClose = /^"/.test(nextTrimmed) || nextTrimmed === '}' || nextTrimmed === ']' || nextTrimmed.startsWith('},') || nextTrimmed.startsWith('],');
+        
+        if (endsWithValue && notEndsWithComma && notEndsWithOpen && nextIsKeyOrClose) {
+          lines[i] = trimmed + ',';
+        }
+      }
+    }
+  }
+  s = lines.join('\n');
+  
+  // 第二次尝试
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // 额外修复：使用更强力的正则兜底（多次执行确保深层嵌套也被修复）
+  for (let round = 0; round < 3; round++) {
+    // 1. "value"\n  "key": 模式（字符串值后缺逗号）
+    s = s.replace(/"(\s*)\n(\s*"[^"]*"\s*:)/g, '",\n$2');
+    
+    // 2. }\n  "key": 或 }\n  { 模式（对象结束后缺逗号）
+    s = s.replace(/\}(\s*)\n(\s*")/g, '},\n$2');
+    
+    // 3. ]\n  "key": 模式（数组结束后缺逗号）  
+    s = s.replace(/\](\s*)\n(\s*")/g, '],\n$2');
+    
+    // 4. }\n  } 模式（嵌套对象结束后缺逗号）
+    s = s.replace(/\}(\s*)\n(\s*\})/g, '},\n$2');
+    
+    // 5. 数字后换行接新键
+    s = s.replace(/(\d)(\s*)\n(\s*"[^"]*"\s*:)/g, '$1,\n$3');
+  }
+  
+  // 第三次尝试
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // 修复结构性问题：删除孤立的 } (即 } 后面紧跟字段键而非 }, 或 ], 或 })
+  // 例如: } \n "key": { 应该变成 "key": {
+  for (let fixRound = 0; fixRound < 5; fixRound++) {
+    // } 后面跟 "key": { （应该是同级段落，删除多余的 }）
+    s = s.replace(/\},?(\s*)\n(\s*"[^"]+"\s*:\s*\{)/g, ',\n$2');
+    // } 后面跟 "key": "value" （孤立字段，删除 } 并加逗号）
+    s = s.replace(/\},?(\s*)\n(\s*"[^"]+"\s*:\s*")/g, ',\n$2');
+    // } 后面跟 "key": [ （孤立数组字段）
+    s = s.replace(/\},?(\s*)\n(\s*"[^"]+"\s*:\s*\[)/g, ',\n$2');
+  }
+  
+  // 第四次尝试
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // 最后：移除末尾多余逗号（防止过度添加）
+  s = s.replace(/,(\s*[\]}])/g, '$1');
+  
+  try { return JSON.parse(s); } catch(e) { return null; }
+}
+
+function formatTimestamps(text) {
+  if (!text) return '';
+  return esc(text).replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)\]/g, 
+    '<span class="timestamp-tag" onclick="seekTo(\'$1\')">$1</span>-<span class="timestamp-tag" onclick="seekTo(\'$2\')">$2</span>');
+}
+
+function countChineseChars(text) {
+  if (!text) return 0;
+  return (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 时长分析功能
+// ═══════════════════════════════════════════════════════════
+function calculateDurationAnalysis(timeline, mustScene, maybeScene, voiceover, avMode) {
+  if (!timeline && !voiceover) return null;
+  
+  // 1. 解析脚本时间轴 (如 "00:00 - 00:45")
+  let scriptDuration = 0;
+  if (timeline) {
+    const timeMatch = timeline.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*-\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (timeMatch) {
+      const startSec = parseInt(timeMatch[1])*60 + parseInt(timeMatch[2]) + (timeMatch[3] ? parseInt(timeMatch[3]) : 0);
+      const endSec = parseInt(timeMatch[4])*60 + parseInt(timeMatch[5]) + (timeMatch[6] ? parseInt(timeMatch[6]) : 0);
+      scriptDuration = endSec - startSec;
+    }
+  }
+  
+  // 2. 解析画面时长（从时间戳提取）
+  function extractSceneDuration(text) {
+    if (!text) return 0;
+    let total = 0;
+    const regex = /\[(\d{1,2}):(\d{2})(?::(\d{2}))?\s*-\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\]/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const startSec = parseInt(match[1])*60 + parseInt(match[2]) + (match[3] ? parseInt(match[3]) : 0);
+      const endSec = parseInt(match[4])*60 + parseInt(match[5]) + (match[6] ? parseInt(match[6]) : 0);
+      total += Math.max(0, endSec - startSec);
+    }
+    return total;
+  }
+  
+  const mustDuration = extractSceneDuration(mustScene);
+  const maybeDuration = extractSceneDuration(maybeScene);
+  const sceneDuration = mustDuration + maybeDuration;
+  
+  // 3. 计算画外音时长（按3字/秒估算）
+  const voiceoverChars = countChineseChars(voiceover);
+  const voiceoverDuration = Math.round(voiceoverChars / 3);
+  
+  // 4. 解析音画配合模式
+  let mode = 'unknown';
+  let modeLabel = '未知模式';
+  if (avMode) {
+    if (avMode.includes('MODE_PURE_VOICEOVER')) {
+      mode = 'voiceover';
+      modeLabel = '解说主导';
+    } else if (avMode.includes('MODE_PURE_ORIGINAL')) {
+      mode = 'original';
+      modeLabel = '原声主导';
+    } else if (avMode.includes('MODE_DYNAMIC_MIX')) {
+      mode = 'mix';
+      modeLabel = '复合交互';
+    }
+  }
+  
+  // 5. 根据模式计算预期时长和匹配度
+  // 解说主导：只计算画外音时长（画面并行）
+  // 原声主导/复合交互：画面时长 + 画外音时长
+  let estimatedDuration = 0;
+  let matchResult = '';
+  let matchClass = '';
+  
+  if (mode === 'voiceover') {
+    // 解说主导模式：只看画外音时长
+    estimatedDuration = voiceoverDuration;
+    const diff = estimatedDuration - scriptDuration;
+    if (Math.abs(diff) <= 5) {
+      matchResult = `匹配 (${estimatedDuration}s)`;
+      matchClass = 'ok';
+    } else if (diff > 0) {
+      matchResult = `富余${diff}秒`;
+      matchClass = diff > 15 ? 'danger' : 'warn';
+    } else {
+      matchResult = `富余${Math.abs(diff)}秒`;
+      matchClass = Math.abs(diff) > 15 ? 'danger' : 'warn';
+    }
+  } else if (mode === 'original' || mode === 'mix') {
+    // 原声主导/复合交互：画面 + 画外音
+    estimatedDuration = sceneDuration + voiceoverDuration;
+    const diff = estimatedDuration - scriptDuration;
+    if (Math.abs(diff) <= 5) {
+      matchResult = `匹配 (${estimatedDuration}s)`;
+      matchClass = 'ok';
+    } else if (diff > 0) {
+      matchResult = `富余${diff}秒`;
+      matchClass = diff > 15 ? 'danger' : 'warn';
+    } else {
+      matchResult = `富余${Math.abs(diff)}秒`;
+      matchClass = Math.abs(diff) > 15 ? 'danger' : 'warn';
+    }
+  } else {
+    // 未知模式
+    estimatedDuration = sceneDuration + voiceoverDuration;
+    matchResult = `预估${estimatedDuration}s (模式未知)`;
+    matchClass = '';
+  }
+  
+  // 格式化时长显示
+  const formatSec = (s) => {
+    if (s < 60) return `${s}秒`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return sec > 0 ? `${m}分${sec}秒` : `${m}分`;
+  };
+  
+  return {
+    scriptDuration,
+    scriptDurationStr: formatSec(scriptDuration),
+    mustDuration,
+    mustDurationStr: formatSec(mustDuration),
+    maybeDuration,
+    maybeDurationStr: formatSec(maybeDuration),
+    sceneDuration,
+    sceneDurationStr: formatSec(sceneDuration),
+    voiceoverChars,
+    voiceoverDuration,
+    voiceoverDurationStr: formatSec(voiceoverDuration),
+    mode,
+    modeLabel,
+    estimatedDuration,
+    matchResult,
+    matchClass
+  };
+}
+
+function toggleSection(head) {
+  const body = head.nextElementSibling;
+  const toggle = head.querySelector('.section-toggle');
+  body.classList.toggle('visible');
+  toggle.textContent = body.classList.contains('visible') ? '▼' : '▶';
+}
+
+function seekTo(timeStr) {
+  const video = document.getElementById('videoPlayer');
+  if (!video.src) return;
+  const parts = timeStr.split(':').map(Number);
+  let seconds = parts.length === 3 ? parts[0]*3600 + parts[1]*60 + parts[2] : parts[0]*60 + parts[1];
+  video.currentTime = seconds;
+  video.play();
+  showToast(`跳转到 ${timeStr}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 标注读写
+// ═══════════════════════════════════════════════════════════
+function loadAnnotation(id) {
+  const ann = annotations[id] || {};
+  ANNOTATION_SCHEMA.forEach(group => {
+    group.fields.forEach(field => {
+      const fid = `${group.id}__${field.id}`;
+      const score = ann[`${fid}_score`];
+      document.querySelectorAll(`[data-field="${fid}"]`).forEach(btn => {
+        btn.classList.toggle('active', String(btn.dataset.score) === String(score));
+      });
+      const prosEl = document.getElementById(`note_${fid}_pros`);
+      const consEl = document.getElementById(`note_${fid}_cons`);
+      if (prosEl) prosEl.value = ann[`${fid}_pros`] || '';
+      if (consEl) consEl.value = ann[`${fid}_cons`] || '';
+    });
+  });
+  const summaryEl = document.getElementById('note_summary');
+  if (summaryEl) summaryEl.value = ann['summary'] || '';
+}
+
+function saveAnnotation() {
+  const id = rows[currentIdx]?.id;
+  if (!id) return;
+  
+  // 停止计时并保存时长
+  stopAndSaveCaseTimer();
+  
+  if (!annotations[id]) annotations[id] = {};
+  ANNOTATION_SCHEMA.forEach(group => {
+    group.fields.forEach(field => {
+      const fid = `${group.id}__${field.id}`;
+      const activeBtn = document.querySelector(`[data-field="${fid}"].active`);
+      annotations[id][`${fid}_score`] = activeBtn ? activeBtn.dataset.score : '';
+      const prosEl = document.getElementById(`note_${fid}_pros`);
+      const consEl = document.getElementById(`note_${fid}_cons`);
+      if (prosEl) annotations[id][`${fid}_pros`] = prosEl.value.trim();
+      if (consEl) annotations[id][`${fid}_cons`] = consEl.value.trim();
+    });
+  });
+  const summaryEl = document.getElementById('note_summary');
+  if (summaryEl) annotations[id]['summary'] = summaryEl.value.trim();
+  annotations[id]['annotator'] = currentUser || '';
+  annotations[id]['time_spent'] = caseTimers[id] || 0;
+  
+  updateProgress();
+  updateTimeDisplay();
+  showToast('✓ 已保存');
+  document.getElementById('savedFlash').classList.add('show');
+  setTimeout(() => document.getElementById('savedFlash').classList.remove('show'), 1500);
+}
+
+function updateTimeDisplay() {
+  const id = rows[currentIdx]?.id;
+  const el = document.getElementById('caseTimeSpent');
+  if (el && id) {
+    const secs = caseTimers[id] || 0;
+    el.textContent = formatDuration(secs);
+  }
+}
+
+function countAnnotated() {
+  let count = 0;
+  rows.forEach(r => {
+    const ann = annotations[r.id] || {};
+    if (Object.keys(ann).some(k => k.endsWith('_score') && ann[k] !== '')) count++;
+  });
+  return count;
+}
+
+function updateProgress() {
+  const done = countAnnotated(), total = rows.length;
+  document.getElementById('progressBadge').textContent = `${done} / ${total}`;
+  document.getElementById('progressFill').style.width = total > 0 ? (done/total*100) + '%' : '0%';
+  document.getElementById('clabel').textContent = `已标注 ${done} / ${total}`;
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.score-btn');
+  if (!btn) return;
+  startCaseTimer(); // 开始计时
+  const { field, score } = btn.dataset;
+  const isActive = btn.classList.contains('active');
+  document.querySelectorAll(`[data-field="${field}"]`).forEach(b => b.classList.remove('active'));
+  if (!isActive) btn.classList.add('active');
+});
+
+// 输入框获得焦点时开始计时
+document.getElementById('col3').addEventListener('focusin', (e) => {
+  if (e.target.matches('input, textarea')) {
+    startCaseTimer();
+  }
+});
+
+document.getElementById('btnSave').addEventListener('click', saveAnnotation);
+
+// ═══════════════════════════════════════════════════════════
+// 导航
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if (currentIdx > 0) {
+    pauseCaseTimer(); // 暂停当前 case 计时
+    resetCaseTimerState();
+    renderCase(currentIdx - 1);
+    updateTimeDisplay();
+  }
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  if (currentIdx < rows.length - 1) {
+    pauseCaseTimer(); // 暂停当前 case 计时
+    resetCaseTimerState();
+    renderCase(currentIdx + 1);
+    updateTimeDisplay();
+  }
+});
+document.getElementById('btnJump').addEventListener('click', () => {
+  const v = parseInt(document.getElementById('jumpInput').value, 10);
+  if (v >= 1 && v <= rows.length) renderCase(v - 1);
+});
+document.getElementById('jumpInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnJump').click(); });
+
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft') document.getElementById('btnPrev').click();
+  if (e.key === 'ArrowRight') document.getElementById('btnNext').click();
+  if (e.key === 's' || e.key === 'S') saveAnnotation();
+});
+
+// ═══════════════════════════════════════════════════════════
+// 导出
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btnExport').addEventListener('click', exportCSV);
+
+function exportCSV() {
+  if (!rows.length) return;
+  const headers = ['id', 'type', 'video_url', 'query', 'model_output', 'duration', 'annotator', 'time_spent_sec', 'time_spent_display'];
+  ANNOTATION_SCHEMA.forEach(group => {
+    group.fields.forEach(field => {
+      const fid = `${group.id}__${field.id}`;
+      headers.push(`${fid}_score`, `${fid}_pros`, `${fid}_cons`);
+    });
+  });
+  headers.push('summary', 'all_pros_summary', 'all_cons_summary');
+
+  const lines = [csvRow(headers)];
+  rows.forEach(d => {
+    const ann = annotations[d.id] || {};
+    const timeSpent = caseTimers[d.id] || ann['time_spent'] || 0;
+    const row = [d.id, d.type, d.videoUrl, d.query, d.modelOutput, d.duration, ann['annotator'] || currentUser || '', timeSpent, formatDuration(timeSpent)];
+    let allPros = [], allCons = [];
+    ANNOTATION_SCHEMA.forEach(group => {
+      group.fields.forEach(field => {
+        const fid = `${group.id}__${field.id}`;
+        const score = ann[`${fid}_score`] || '';
+        const pros = ann[`${fid}_pros`] || '';
+        const cons = ann[`${fid}_cons`] || '';
+        row.push(score, pros, cons);
+        if (pros) allPros.push(`[${field.name}] ${pros}`);
+        if (cons) allCons.push(`[${field.name}] ${cons}`);
+      });
+    });
+    row.push(ann['summary'] || '', allPros.join(' | '), allCons.join(' | '));
+    lines.push(csvRow(row));
+  });
+
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + lines.join('')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const userName = currentUser ? `_${currentUser}` : '';
+  a.download = `video_script_annotation_v4${userName}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function csvRow(cells) {
+  return cells.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',') + '\r\n';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 1500);
+}
+</script>
+</body>
+</html>

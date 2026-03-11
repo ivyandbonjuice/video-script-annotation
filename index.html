@@ -1130,27 +1130,34 @@ function recalculateDuration(analysisId) {
     document.getElementById(`${analysisId}_chars_orig`).textContent = `原始: ${origVoiceoverChars}字`;
   }
   
-  // 重新计算匹配度
-  let estimatedDuration = 0;
-  if (mode === 'voiceover') {
-    estimatedDuration = newVoiceoverDuration;
-  } else {
-    estimatedDuration = newSceneDuration + newVoiceoverDuration;
-  }
+  // 重新计算匹配度 (基于画外音时长 T_vo 与画面时长比较)
+  const T_vo = newVoiceoverDuration;
+  const T_must = newMustDuration;
+  const T_maybe = newMaybeDuration;
+  const T_total = T_must + T_maybe;
   
-  const diff = estimatedDuration - newScriptDuration;
   let matchResult = '';
   let matchClass = '';
   
-  if (Math.abs(diff) <= 5) {
-    matchResult = `匹配 (${estimatedDuration}s)`;
+  if (T_vo <= T_must) {
+    // 🟡 声短画长
+    const surplus = T_must - T_vo;
+    matchResult = `🟡 声短画长 (富余${surplus}s，需处理)`;
     matchClass = 'ok';
-  } else if (diff > 0) {
-    matchResult = `超出${diff}秒`;
-    matchClass = diff > 15 ? 'danger' : 'warn';
+  } else if (T_vo <= T_total) {
+    // 🟢 完美匹配
+    matchResult = `🟢 完美匹配`;
+    matchClass = 'ok';
+  } else if (T_vo <= T_total + 10) {
+    // 🟠 轻度溢出
+    const overflow = T_vo - T_total;
+    matchResult = `🟠 轻度溢出 (缺${overflow}s，补Maybe)`;
+    matchClass = 'warn';
   } else {
-    matchResult = `剩余${Math.abs(diff)}秒`;
-    matchClass = Math.abs(diff) > 15 ? 'danger' : 'warn';
+    // 🔴 严重溢出
+    const overflow = T_vo - T_total;
+    matchResult = `🔴 严重溢出 (缺${overflow}s，需大修)`;
+    matchClass = 'danger';
   }
   
   const matchEl = document.getElementById(`${analysisId}_match`);
@@ -1624,41 +1631,35 @@ function calculateDurationAnalysis(timeline, mustScene, maybeScene, voiceover, a
     }
   }
   
-  // 5. 根据模式计算预期时长和匹配度
-  let estimatedDuration = 0;
+  // 5. 计算匹配度 (基于画外音时长 T_vo 与画面时长比较)
+  // T_vo=画外音时长, T_must=核心画面时长, T_maybe=辅助画面时长
+  const T_vo = voiceoverDuration;
+  const T_must = mustDuration;
+  const T_maybe = maybeDuration;
+  const T_total = T_must + T_maybe;
+  
   let matchResult = '';
   let matchClass = '';
   
-  if (mode === 'voiceover') {
-    estimatedDuration = voiceoverDuration;
-    const diff = estimatedDuration - scriptDuration;
-    if (Math.abs(diff) <= 5) {
-      matchResult = `匹配 (${estimatedDuration}s)`;
-      matchClass = 'ok';
-    } else if (diff > 0) {
-      matchResult = `富余${diff}秒`;
-      matchClass = diff > 15 ? 'danger' : 'warn';
-    } else {
-      matchResult = `富余${Math.abs(diff)}秒`;
-      matchClass = Math.abs(diff) > 15 ? 'danger' : 'warn';
-    }
-  } else if (mode === 'original' || mode === 'mix') {
-    estimatedDuration = sceneDuration + voiceoverDuration;
-    const diff = estimatedDuration - scriptDuration;
-    if (Math.abs(diff) <= 5) {
-      matchResult = `匹配 (${estimatedDuration}s)`;
-      matchClass = 'ok';
-    } else if (diff > 0) {
-      matchResult = `富余${diff}秒`;
-      matchClass = diff > 15 ? 'danger' : 'warn';
-    } else {
-      matchResult = `富余${Math.abs(diff)}秒`;
-      matchClass = Math.abs(diff) > 15 ? 'danger' : 'warn';
-    }
+  if (T_vo <= T_must) {
+    // 🟡 声短画长：T_vo ≤ T_must
+    const surplus = T_must - T_vo;
+    matchResult = `🟡 声短画长 (富余${surplus}s，需处理)`;
+    matchClass = 'ok';
+  } else if (T_vo <= T_total) {
+    // 🟢 完美匹配：T_must < T_vo ≤ (T_must + T_maybe)
+    matchResult = `🟢 完美匹配`;
+    matchClass = 'ok';
+  } else if (T_vo <= T_total + 10) {
+    // 🟠 轻度溢出：T_total < T_vo ≤ T_total + 10s
+    const overflow = T_vo - T_total;
+    matchResult = `🟠 轻度溢出 (缺${overflow}s，补Maybe)`;
+    matchClass = 'warn';
   } else {
-    estimatedDuration = sceneDuration + voiceoverDuration;
-    matchResult = `预估${estimatedDuration}s (模式未知)`;
-    matchClass = '';
+    // 🔴 严重溢出：T_vo > T_total + 10s
+    const overflow = T_vo - T_total;
+    matchResult = `🔴 严重溢出 (缺${overflow}s，需大修)`;
+    matchClass = 'danger';
   }
   
   // 格式化时长显示
@@ -1685,7 +1686,6 @@ function calculateDurationAnalysis(timeline, mustScene, maybeScene, voiceover, a
     voiceoverDurationStr: formatSec(voiceoverDuration),
     mode,
     modeLabel,
-    estimatedDuration,
     matchResult,
     matchClass
   };

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>视频脚本数据预览工具 v6.1</title>
+<title>视频脚本数据预览工具 v6.2</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -291,6 +291,95 @@ kbd {
 .meta-value { color: var(--text2); flex: 1; }
 .meta-value.mono { font-family: var(--mono); }
 
+/* 模型回复预览区域 - 暗色主题 Tab 风格 */
+.model-preview-section {
+  background: #1e1e2e; border: 1px solid #313244;
+  border-radius: 8px; margin-top: 8px;
+  flex-shrink: 0;
+}
+.model-preview-tabs {
+  display: flex; gap: 0; background: #181825;
+  border-bottom: 1px solid #313244;
+}
+.model-preview-tab {
+  padding: 10px 20px; font-size: 12px; font-weight: 600;
+  color: #a6adc8; cursor: pointer;
+  border: none; background: transparent;
+  transition: all 0.2s;
+}
+.model-preview-tab:hover { color: #cdd6f4; background: #313244; }
+.model-preview-tab.active {
+  color: #f38ba8; background: #1e1e2e;
+  border-bottom: 2px solid #f38ba8;
+}
+.model-preview-body {
+  padding: 0;
+}
+.model-preview-panel {
+  display: none; padding: 16px;
+}
+.model-preview-panel.active { display: block; }
+
+/* 文案预览面板 */
+.voiceover-preview-item {
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px solid #313244;
+}
+.voiceover-preview-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.voiceover-preview-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.voiceover-time-badge {
+  font-family: var(--mono); font-size: 10px;
+  background: #45475a; color: #fab387;
+  padding: 3px 8px; border-radius: 4px;
+}
+.voiceover-act-name {
+  font-size: 11px; font-weight: 600; color: #f9e2af;
+}
+.voiceover-preview-text {
+  font-size: 12px; color: #cdd6f4; line-height: 1.7;
+  padding: 10px 14px; background: transparent;
+  border-left: 3px solid #45475a;
+  margin-left: 4px;
+}
+.voiceover-stats {
+  font-size: 10px; color: #6c7086; margin-top: 12px;
+  padding: 8px 12px; background: #181825;
+  border-radius: 4px; text-align: center;
+}
+.voiceover-stats b { color: #89b4fa; }
+
+/* 完整脚本面板 */
+.full-script-section {
+  margin-bottom: 12px;
+}
+.full-script-title {
+  font-size: 11px; font-weight: 700; color: #89b4fa;
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px dashed #45475a;
+}
+.full-script-field {
+  margin-bottom: 6px; font-size: 10px;
+}
+.full-script-key {
+  color: #6c7086; font-weight: 600;
+}
+.full-script-val {
+  color: #cdd6f4; padding: 4px 8px;
+  background: #181825; border-radius: 4px;
+  display: block; margin-top: 2px;
+}
+.full-script-act {
+  margin-bottom: 12px; padding: 10px;
+  background: #181825; border-radius: 6px;
+  border-left: 3px solid #89b4fa;
+}
+.full-script-act-title {
+  font-size: 10px; font-weight: 700; color: #f9e2af;
+  margin-bottom: 8px;
+}
+
 /* ── COL 2: Script Output ── */
 .script-section {
   background: var(--surface); border: 1px solid var(--border);
@@ -545,7 +634,7 @@ kbd {
 </div>
 
 <div class="navbar">
-  <div class="brand">📊 视频脚本数据预览 <span class="version-badge">v6.1</span></div>
+  <div class="brand">📊 视频脚本数据预览 <span class="version-badge">v6.2</span></div>
   <div class="nav-sep"></div>
   <div class="nav-right">
     <div class="id-search-container">
@@ -571,10 +660,10 @@ kbd {
 <div class="workspace">
   <div class="upload-screen" id="uploadScreen">
     <div class="upload-card" id="uploadCard">
-      <input type="file" id="xlsxInput" accept=".xlsx,.xls">
+      <input type="file" id="xlsxInput" accept=".xlsx,.xls,.jsonl">
       <div class="upload-icon">📊</div>
-      <div class="upload-title">加载 Excel 文件</div>
-      <div class="upload-desc">支持列: data_id, video_url, total_json</div>
+      <div class="upload-title">加载数据文件</div>
+      <div class="upload-desc">支持 Excel (.xlsx) 或 JSONL (.jsonl) 格式</div>
       <div class="upload-status" id="uploadStatus"></div>
     </div>
   </div>
@@ -597,6 +686,18 @@ kbd {
           <div class="meta-box-title">📋 基础信息</div>
           <div class="meta-row"><span class="meta-label">ID:</span><span class="meta-value mono" id="metaId">—</span></div>
           <div class="meta-row"><span class="meta-label">视频链接:</span><span class="meta-value mono" id="metaUrl" style="word-break:break-all;font-size:9px;">—</span></div>
+        </div>
+        
+        <!-- 模型回复预览（带Tab切换的暗色面板） -->
+        <div class="model-preview-section" id="modelPreviewSection" style="display:none;">
+          <div class="model-preview-tabs">
+            <button class="model-preview-tab active" onclick="switchModelTab('voiceover')">文案预览</button>
+            <button class="model-preview-tab" onclick="switchModelTab('full')">完整脚本</button>
+          </div>
+          <div class="model-preview-body">
+            <div class="model-preview-panel active" id="voiceoverPanel"></div>
+            <div class="model-preview-panel" id="fullScriptPanel"></div>
+          </div>
         </div>
       </div>
 
@@ -813,6 +914,58 @@ async function loadFile(file) {
   document.getElementById('loadingOverlay').classList.add('visible');
   
   try {
+    const fileName = file.name.toLowerCase();
+    
+    // 判断文件类型
+    if (fileName.endsWith('.jsonl')) {
+      await loadJsonlFile(file);
+    } else {
+      await loadExcelFile(file);
+    }
+    
+  } catch (err) {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('解析失败: ' + err.message);
+  }
+}
+
+// 加载 JSONL 文件
+async function loadJsonlFile(file) {
+  const text = await file.text();
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  
+  rows = lines.map((line, idx) => {
+    try {
+      const row = JSON.parse(line);
+      const data = {
+        id: String(row['data_id'] || idx + 1),
+        videoUrl: row['video_url'] || '',
+        modelOutput: row['total_json'] ? JSON.stringify(row['total_json']) : '',
+        step4Fixed: row['step4_fixed'] || null,
+        visualMatches: {}
+      };
+      return data;
+    } catch (e) {
+      return { id: String(idx + 1), videoUrl: '', modelOutput: '', step4Fixed: null, visualMatches: {} };
+    }
+  });
+  
+  allIds = rows.map(r => r.id);
+  
+  if (!rows.length) {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('无有效数据');
+    return;
+  }
+  
+  document.getElementById('loadingOverlay').classList.remove('visible');
+  document.getElementById('uploadStatus').innerHTML = `✓ 已加载 <b>${rows.length}</b> 条数据 (JSONL)`;
+  
+  setTimeout(() => initTool(), 300);
+}
+
+// 加载 Excel 文件
+async function loadExcelFile(file) {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
     const sheetNames = workbook.SheetNames;
@@ -821,10 +974,23 @@ async function loadFile(file) {
     const caseData = XLSX.utils.sheet_to_json(caseSheet);
     
     rows = caseData.map((row, idx) => {
+      const rawJson = row['total_json'] || row['模型回复'] || '';
+      
+      // 尝试将 total_json 解析为 step4Fixed
+      let step4Fixed = null;
+      if (rawJson) {
+        try {
+          step4Fixed = parseModelOutput(rawJson);
+        } catch (e) {
+          step4Fixed = null;
+        }
+      }
+      
       const data = {
         id: String(row['data_id'] || row['ID'] || idx + 1),
         videoUrl: row['video_url'] || row['视频链接'] || '',
-        modelOutput: row['total_json'] || row['模型回复'] || '',
+        modelOutput: rawJson,
+        step4Fixed: step4Fixed,
         // 存储每一幕的画面匹配数据 (p1-p9)
         visualMatches: {}
       };
@@ -860,14 +1026,9 @@ async function loadFile(file) {
     }
     
     document.getElementById('loadingOverlay').classList.remove('visible');
-    document.getElementById('uploadStatus').innerHTML = `✓ 已加载 <b>${rows.length}</b> 条数据`;
+    document.getElementById('uploadStatus').innerHTML = `✓ 已加载 <b>${rows.length}</b> 条数据 (Excel)`;
     
     setTimeout(() => initTool(), 300);
-    
-  } catch (err) {
-    document.getElementById('loadingOverlay').classList.remove('visible');
-    showToast('解析失败: ' + err.message);
-  }
 }
 
 function initTool() {
@@ -901,8 +1062,139 @@ function renderCase(idx) {
   if (d.videoUrl) { videoEl.src = d.videoUrl; videoEl.load(); } else { videoEl.src = ''; }
   
   renderScriptOutput(d.modelOutput, d.visualMatches);
+  
+  // 渲染模型预览（文案预览 + 完整脚本 Tab面板）
+  renderModelPreview(d.step4Fixed);
 
   ['col1','col2'].forEach(id => document.getElementById(id).scrollTop = 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 模型预览渲染（Tab面板：文案预览 + 完整脚本）
+// ═══════════════════════════════════════════════════════════
+function renderModelPreview(step4Fixed) {
+  const section = document.getElementById('modelPreviewSection');
+  const voiceoverPanel = document.getElementById('voiceoverPanel');
+  const fullScriptPanel = document.getElementById('fullScriptPanel');
+  
+  if (!step4Fixed || !step4Fixed['内容结构']) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  const structure = step4Fixed['内容结构'];
+  
+  // ========== 文案预览面板 ==========
+  let voiceoverHtml = '';
+  let totalChars = 0;
+  let actCount = 0;
+  
+  Object.keys(structure).forEach((actKey, idx) => {
+    const act = structure[actKey];
+    if (!act || typeof act !== 'object') return;
+    
+    const voiceoverText = act['画外音文案'];
+    const timeline = act['脚本时间轴'] || '';
+    
+    if (voiceoverText) {
+      const chars = countChineseChars(voiceoverText);
+      totalChars += chars;
+      actCount++;
+      
+      voiceoverHtml += `<div class="voiceover-preview-item">
+        <div class="voiceover-preview-header">
+          <span class="voiceover-time-badge">${esc(timeline)}</span>
+          <span class="voiceover-act-name">${esc(actKey)}</span>
+        </div>
+        <div class="voiceover-preview-text">${esc(voiceoverText)}</div>
+      </div>`;
+    }
+  });
+  
+  // 统计信息
+  const estimatedDuration = Math.round(totalChars / 3);
+  const minutes = Math.floor(estimatedDuration / 60);
+  const seconds = estimatedDuration % 60;
+  voiceoverHtml += `<div class="voiceover-stats">
+    共 <b>${actCount}</b> 幕 · 总字数 <b>${totalChars}</b> 字 · 预估时长 <b>${minutes}分${seconds}秒</b>
+  </div>`;
+  
+  voiceoverPanel.innerHTML = voiceoverHtml;
+  
+  // ========== 完整脚本面板 ==========
+  let fullHtml = '';
+  
+  // 整体信息
+  if (step4Fixed['整体时长']) {
+    fullHtml += `<div class="full-script-section">
+      <div class="full-script-title">⏱ 整体时长</div>
+      <div class="full-script-field"><span class="full-script-val">${esc(step4Fixed['整体时长'])}</span></div>
+    </div>`;
+  }
+  if (step4Fixed['解说人设']) {
+    fullHtml += `<div class="full-script-section">
+      <div class="full-script-title">🎙 解说人设</div>
+      <div class="full-script-field"><span class="full-script-val">${esc(step4Fixed['解说人设'])}</span></div>
+    </div>`;
+  }
+  
+  // 内容结构
+  fullHtml += `<div class="full-script-section"><div class="full-script-title">📚 内容结构</div>`;
+  Object.keys(structure).forEach((actKey, idx) => {
+    const act = structure[actKey];
+    if (!act || typeof act !== 'object') return;
+    
+    fullHtml += `<div class="full-script-act">
+      <div class="full-script-act-title">${idx + 1}. ${esc(actKey)}</div>`;
+    
+    const fieldOrder = ['脚本时间轴', '战术意图', 'Must画面建议', 'Maybe画面建议', '画外音文案', '音效建议', '音画配合模式'];
+    fieldOrder.forEach(key => {
+      if (act[key]) {
+        fullHtml += `<div class="full-script-field">
+          <span class="full-script-key">${esc(key)}:</span>
+          <span class="full-script-val">${esc(act[key])}</span>
+        </div>`;
+      }
+    });
+    fullHtml += `</div>`;
+  });
+  fullHtml += `</div>`;
+  
+  // 视频包装规范
+  const pkg = step4Fixed['视频包装规范'];
+  if (pkg && typeof pkg === 'object') {
+    fullHtml += `<div class="full-script-section"><div class="full-script-title">🎨 视频包装规范</div>`;
+    Object.keys(pkg).forEach(key => {
+      if (pkg[key]) {
+        fullHtml += `<div class="full-script-field">
+          <span class="full-script-key">${esc(key)}:</span>
+          <span class="full-script-val">${esc(pkg[key])}</span>
+        </div>`;
+      }
+    });
+    fullHtml += `</div>`;
+  }
+  
+  fullScriptPanel.innerHTML = fullHtml;
+}
+
+// Tab 切换功能
+function switchModelTab(tabName) {
+  const tabs = document.querySelectorAll('.model-preview-tab');
+  const panels = document.querySelectorAll('.model-preview-panel');
+  
+  tabs.forEach(tab => tab.classList.remove('active'));
+  panels.forEach(panel => panel.classList.remove('active'));
+  
+  if (tabName === 'voiceover') {
+    tabs[0].classList.add('active');
+    document.getElementById('voiceoverPanel').classList.add('active');
+  } else {
+    tabs[1].classList.add('active');
+    document.getElementById('fullScriptPanel').classList.add('active');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════

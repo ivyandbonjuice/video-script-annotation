@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频脚本数据预览工具 v6.3.2</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e2e5eb;
+  --border2: #d0d4de;
+  --accent: #8b5cf6;
+  --accent-light: #f3e8ff;
+  --accent-dark: #7c3aed;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --warn: #d97706;
+  --warn-light: #fffbeb;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --info: #0ea5e9;
+  --info-light: #f0f9ff;
+  --text: #111827;
+  --text2: #374151;
+  --muted: #6b7280;
+  --muted2: #9ca3af;
+  --nav-h: 52px;
+  --sans: 'Inter', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+/* ── NAVBAR ─────────────────────────────────────────────── */
+.navbar {
+  height: var(--nav-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  z-index: 100;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.version-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  color: white;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+}
+
+.nav-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+.nav-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+/* 按钮样式 */
+.btn {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text2);
+  font-size: 11px; font-family: var(--sans); cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-secondary { background: var(--surface2); }
+
+/* 项目下拉 */
+.project-dropdown {
+  position: relative;
+}
+.project-dropdown-btn {
+  cursor: pointer;
+}
+.project-menu {
+  position: absolute;
+  top: 100%; left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  min-width: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 200;
+  display: none;
+}
+.project-menu.visible { display: block; }
+.project-menu-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.project-menu-item:last-child { border-bottom: none; }
+.project-menu-item:hover { background: var(--accent-light); }
+.project-menu-item.current { background: var(--accent-light); color: var(--accent); }
+.project-item-count {
+  font-size: 10px;
+  background: var(--surface2);
+  padding: 2px 6px;
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; opacity: 0; visibility: hidden;
+  transition: all 0.2s;
+}
+.modal-overlay.visible { opacity: 1; visibility: visible; }
+.modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+.modal-header {
+  font-size: 16px; font-weight: 600; margin-bottom: 16px;
+}
+.modal-body { display: flex; flex-direction: column; gap: 12px; }
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;
+}
+.form-group label {
+  font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 4px;
+}
+.form-input {
+  width: 100%; padding: 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; outline: none;
+}
+.form-input:focus { border-color: var(--accent); }
+
+/* 数据源配置面板 */
+.datasource-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px;
+  max-width: 600px;
+}
+.datasource-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.datasource-item:last-child { margin-bottom: 0; }
+.datasource-item label {
+  flex: 1;
+}
+.datasource-url {
+  width: 100%; margin-top: 8px;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: 40px; color: var(--muted);
+}
+.loading-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 其他原有样式保持不变 */
+.case-counter {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0 8px; height: 28px;
+  display: flex; align-items: center; gap: 3px;
+}
+
+.jump-wrap { display: flex; align-items: center; gap: 3px; }
+.jump-input {
+  width: 50px; height: 28px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface2); padding: 0 6px;
+  font-size: 11px; font-family: var(--mono); color: var(--text);
+  outline: none; text-align: center;
+}
+
+.id-search-input {
+  width: 120px; height: 28px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); padding: 0 8px;
+  font-size: 11px; font-family: var(--mono); color: var(--text);
+  outline: none;
+}
+.id-search-input:focus { border-color: var(--accent); }
+.id-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-height: 200px; overflow-y: auto; z-index: 200;
+  display: none;
+}
+.id-dropdown.visible { display: block; }
+.id-dropdown-item {
+  padding: 6px 10px; font-size: 11px; cursor: pointer;
+  font-family: var(--mono);
+}
+.id-dropdown-item:hover { background: var(--accent-light); color: var(--accent); }
+.id-search-container { position: relative; }
+
+.ratio-badge {
+  font-size: 10px; font-weight: 600;
+  background: var(--info-light); color: var(--info);
+  border: 1px solid #7dd3fc; border-radius: 4px;
+  padding: 2px 8px; font-family: var(--mono);
+}
+
+.workspace { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+.case-layout { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.case-layout.visible { display: flex; }
+
+.hints-bar {
+  height: 26px; background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0;
+}
+.hint-item { font-size: 9px; color: var(--muted); display: flex; align-items: center; gap: 3px; }
+kbd {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 2px; padding: 0 3px; font-size: 8px;
+  font-family: var(--mono); color: var(--text2); line-height: 14px;
+}
+
+.info-bar {
+  height: 32px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 14px; gap: 12px; flex-shrink: 0;
+}
+
+.case-id-badge {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-light); padding: 2px 8px; border-radius: 4px;
+  font-family: var(--mono);
+}
+.title-text {
+  font-size: 12px; color: var(--text2);
+  flex: 1;
+}
+
+.two-cols {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.col {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.col-left { flex: 6; }
+.col-right { flex: 4; }
+
+.col-header {
+  height: 32px; background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px;
+  font-size: 11px; font-weight: 600; color: var(--text2); flex-shrink: 0;
+}
+.purple .col-header { color: var(--accent); }
+.green .col-header { color: var(--success); }
+
+.video-wrap {
+  flex: 1; min-height: 200px;
+  background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+video { width: 100%; height: 100%; }
+
+.meta-box {
+  padding: 10px; border-bottom: 1px solid var(--border);
+}
+.meta-box-title {
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  margin-bottom: 8px; text-transform: uppercase;
+}
+.meta-row {
+  display: flex; font-size: 10px; margin-bottom: 4px;
+}
+.meta-label { color: var(--muted); min-width: 60px; }
+.meta-value { font-family: var(--mono); color: var(--text2); word-break: break-all; }
+
+/* 模型预览面板（文案预览 + 完整脚本） */
+.model-preview-section {
+  padding: 10px; border-bottom: 1px solid var(--border);
+}
+.model-preview-tabs {
+  display: flex; gap: 0; background: #181825;
+  border-bottom: 1px solid #313244;
+}
+.model-preview-tab {
+  padding: 10px 20px; font-size: 12px; font-weight: 600;
+  color: #a6adc8; cursor: pointer;
+  border: none; background: transparent;
+  transition: all 0.2s;
+}
+.model-preview-tab:hover { color: #cdd6f4; background: #313244; }
+.model-preview-tab.active {
+  color: #f38ba8; background: #1e1e2e;
+  border-bottom: 2px solid #f38ba8;
+}
+.model-preview-body {
+  padding: 0;
+}
+.model-preview-panel {
+  display: none; padding: 16px;
+}
+.model-preview-panel.active { display: block; }
+
+/* 文案预览面板 */
+.voiceover-preview-item {
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px solid #313244;
+}
+.voiceover-preview-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.voiceover-preview-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.voiceover-time-badge {
+  font-family: var(--mono); font-size: 10px;
+  background: #45475a; color: #fab387;
+  padding: 3px 8px; border-radius: 4px;
+}
+.voiceover-act-name {
+  font-size: 11px; font-weight: 600; color: #f9e2af;
+}
+.voiceover-preview-text {
+  font-size: 12px; color: #cdd6f4; line-height: 1.7;
+  padding: 10px 14px; background: transparent;
+  border-left: 3px solid #45475a;
+  margin-left: 4px;
+}
+.voiceover-stats {
+  font-size: 10px; color: #6c7086; margin-top: 12px;
+  padding: 8px 12px; background: #181825;
+  border-radius: 4px; text-align: center;
+}
+.voiceover-stats b { color: #89b4fa; }
+
+/* 完整脚本面板 */
+.full-script-section {
+  margin-bottom: 12px;
+}
+.full-script-title {
+  font-size: 11px; font-weight: 700; color: #89b4fa;
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px dashed #45475a;
+}
+.full-script-field {
+  margin-bottom: 6px; font-size: 10px;
+}
+.full-script-key {
+  color: #6c7086; font-weight: 600;
+}
+.full-script-val {
+  color: #cdd6f4; padding: 4px 8px;
+  background: #181825; border-radius: 4px;
+  display: block; margin-top: 2px;
+}
+.full-script-act {
+  margin-bottom: 12px; padding: 10px;
+  background: #181825; border-radius: 6px;
+  border-left: 3px solid #89b4fa;
+}
+.full-script-act-title {
+  font-size: 10px; font-weight: 700; color: #f9e2af;
+  margin-bottom: 8px;
+}
+
+/* 时长分析模块 */
+.duration-analysis {
+  background: linear-gradient(135deg, #fdf4ff, #eff6ff);
+  border: 1px solid #c4b5fd; border-radius: 6px; padding: 10px; margin-bottom: 8px;
+}
+.duration-analysis-title { font-size: 10px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; }
+.duration-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; }
+.duration-label { color: var(--muted); min-width: 85px; }
+.duration-value { font-family: var(--mono); color: var(--text); font-weight: 600; }
+.duration-value.ok { color: var(--success); }
+.duration-value.warn { color: var(--warn); }
+.duration-value.danger { color: var(--danger); }
+.duration-input {
+  width: 60px; height: 22px;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 0 6px; font-size: 10px; font-family: var(--mono);
+  color: var(--text); background: var(--surface);
+  outline: none; text-align: center;
+}
+.duration-input:focus { border-color: var(--accent); }
+
+/* 音画模式选择器 */
+.mode-selector {
+  display: flex;
+  gap: 4px;
+}
+.mode-btn {
+  flex: 1;
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text2);
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  height: 20px;
+}
+.mode-btn:hover { border-color: var(--accent); }
+.mode-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* 字数范围显示 */
+.char-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  background: var(--accent-light);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-dark);
+}
+.char-range .min-max {
+  font-size: 8px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.resizer {
+  width: 6px; background: var(--border2);
+  cursor: col-resize;
+  flex-shrink: 0;
+}
+.resizer.active { background: var(--accent); }
+
+.script-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.script-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; margin-bottom: 8px;
+}
+.script-section-head {
+  background: var(--surface2); padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.script-section-head:hover { background: var(--accent-light); }
+.section-icon { font-size: 14px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; }
+.section-toggle { font-size: 9px; color: var(--muted); }
+.script-section-body { padding: 10px; display: none; }
+.script-section-body.visible { display: block; }
+
+.script-field { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
+.script-field:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.field-label { font-size: 9px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.field-value { font-size: 11px; color: var(--text2); line-height: 1.5; background: var(--surface2); border-radius: 4px; padding: 6px 8px; }
+.field-value.timeline { font-family: var(--mono); font-size: 10px; background: var(--info-light); border-left: 3px solid var(--info); }
+.field-value.voiceover { background: var(--warn-light); border-left: 3px solid var(--warn); }
+.field-value.must { background: var(--danger-light); border-left: 3px solid var(--danger); }
+.field-value.maybe { background: var(--success-light); border-left: 3px solid var(--success); }
+
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: white;
+  padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 500;
+  z-index: 1001; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.visible { opacity: 1; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px; color: var(--muted); }
+.empty-icon { font-size: 36px; }
+
+/* 数据源管理面板 */
+.datasource-page {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: none; flex-direction: column;
+}
+.datasource-page.visible { display: flex; }
+.datasource-header {
+  height: var(--nav-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 20px; gap: 10px;
+}
+.datasource-title {
+  font-size: 14px; font-weight: 600;
+}
+.datasource-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* 数据导出区域 */
+.export-area {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.export-area textarea {
+  width: 100%;
+  height: 200px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  resize: vertical;
+}
+.copy-area {
+  display: flex; justify-content: flex-end; margin-top: 8px;
+}
+
+/* 管理员文件上传区域 */
+.admin-upload-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.admin-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.admin-upload-area:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.admin-upload-input {
+  display: none;
+}
+.admin-upload-status {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="brand">📊 视频脚本数据预览 <span class="version-badge">v6.3.2</span></div>
+  <div class="nav-sep"></div>
+  <div class="nav-right">
+    <div class="id-search-container">
+      <input type="text" class="id-search-input" id="idSearchInput" placeholder="搜索ID...">
+      <div class="id-dropdown" id="idDropdown"></div>
+    </div>
+    <button class="btn" id="btnSearch">搜索</button>
+    <div class="nav-sep"></div>
+    <div class="case-counter"><span id="caseNum">—</span><span class="total">/ <span id="caseTotal">0</span></span></div>
+    <button class="btn" id="btnPrev" disabled>◀</button>
+    <button class="btn" id="btnNext" disabled>▶</button>
+    <div class="jump-wrap">
+      <input type="number" class="jump-input" id="jumpInput" placeholder="#" min="1">
+      <button class="btn" id="btnJump">跳转</button>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="project-dropdown">
+      <button class="btn project-dropdown-btn" id="projectDropdownBtn">
+        📁 <span id="currentDatasetName">加载中...</span> ▼
+      </button>
+      <div class="project-menu" id="projectMenu"></div>
+    </div>
+    <div class="nav-sep"></div>
+    <button class="btn" id="btnDatasource">🔗 数据源</button>
+  </div>
+</div>
+
+<!-- 加载状态 -->
+<div id="loadingState" class="loading-state">
+  <div class="loading-spinner"></div>
+  <div id="loadingText">正在加载数据...</div>
+</div>
+
+<!-- 主界面 -->
+<div class="workspace" id="workspace" style="display:none;">
+  <div class="case-layout" id="caseLayout">
+    <div class="hints-bar">
+      <div class="hint-item"><kbd>←</kbd><kbd>→</kbd> 切换</div>
+    </div>
+    <div class="info-bar">
+      <div class="case-id-badge" id="infoCaseId">Case #1</div>
+      <div class="title-text" id="infoTitle">—</div>
+    </div>
+
+    <div class="two-cols" id="twoCols">
+      <div class="col col-left" id="col1">
+        <div class="col-header purple">📽 原视频</div>
+        <div class="video-wrap"><video id="videoPlayer" controls preload="metadata"></video></div>
+        <div class="meta-box">
+          <div class="meta-box-title">📋 基础信息</div>
+          <div class="meta-row"><span class="meta-label">ID:</span><span class="meta-value mono" id="metaId">—</span></div>
+          <div class="meta-row"><span class="meta-label">视频:</span><span class="meta-value mono" id="metaUrl" style="font-size:9px;word-break:break-all;">—</span></div>
+        </div>
+
+        <!-- 模型预览面板（文案预览 + 完整脚本） -->
+        <div class="model-preview-section" id="modelPreviewSection" style="display:none;">
+          <div class="model-preview-tabs">
+            <button class="model-preview-tab active" onclick="switchModelTab('voiceover')">文案预览</button>
+            <button class="model-preview-tab" onclick="switchModelTab('full')">完整脚本</button>
+          </div>
+          <div class="model-preview-body">
+            <div class="model-preview-panel active" id="voiceoverPanel"></div>
+            <div class="model-preview-panel" id="fullScriptPanel"></div>
+          </div>
+        </div>
+
+        <!-- 时长分析模块 -->
+        <div class="duration-analysis" id="durationAnalysisSection" style="display:none;">
+          <div class="duration-analysis-title">⏱ 时长分析</div>
+
+          <!-- 脚本时长解析 -->
+          <div class="duration-row">
+            <span class="duration-label">脚本时长:</span>
+            <span class="duration-value" id="analysisScriptDuration">—</span>
+          </div>
+
+          <!-- 语速输入 -->
+          <div class="duration-row">
+            <span class="duration-label">语速:</span>
+            <input type="number" id="analysisSpeedInput" class="duration-input" value="200" min="100" max="400" step="10">
+            <span class="duration-value">字/分</span>
+            <button class="btn btn-primary" style="height:22px;padding:0 8px;font-size:9px;" onclick="calculateDurationAnalysis()">计算</button>
+          </div>
+
+          <!-- 音画模式选择 -->
+          <div class="duration-row" style="align-items:flex-start;">
+            <span class="duration-label" style="margin-top:2px;">音画模式:</span>
+            <div class="mode-selector" style="flex:1;">
+              <button class="mode-btn active" data-mode="voiceover">仅解读</button>
+              <button class="mode-btn" data-mode="original">混合模式</button>
+            </div>
+          </div>
+
+          <!-- 理想字数结果 -->
+          <div class="duration-row">
+            <span class="duration-label">理想字数:</span>
+            <span class="char-range" id="idealCharRange"><b>—</b></span>
+          </div>
+
+          <!-- 画外音字数统计 -->
+          <div class="duration-row">
+            <span class="duration-label">画外音字数:</span>
+            <span class="duration-value" id="voiceoverCharCount">—</span>
+          </div>
+
+          <!-- 匹配结果 -->
+          <div class="duration-row">
+            <span class="duration-label">匹配情况:</span>
+            <span class="duration-value" id="textMatchResult">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer" id="resizer"></div>
+
+      <div class="col col-right" id="col2">
+        <div class="col-header green">📜 模型输出</div>
+        <div class="script-container" id="scriptContainer">
+          <div class="empty-state"><div class="empty-icon">📭</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 登录弹窗 -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <div class="modal-header">管理员登录</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" class="form-input" id="loginUsername" placeholder="admin">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="bonmm">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btnLoginCancel">取消</button>
+      <button class="btn btn-primary" id="btnLoginConfirm">登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 数据源配置面板 -->
+<div class="datasource-page" id="datasourcePage">
+  <div class="datasource-header">
+    <span class="datasource-title">🔗 数据源管理</span>
+    <button class="btn btn-secondary" id="btnBackToMain">返回</button>
+  </div>
+  <div class="datasource-content">
+    <div class="datasource-panel">
+      <h3 style="margin-bottom:12px;">当前数据源</h3>
+      <div class="datasource-item">
+        <label>数据源URL:</label>
+        <div style="flex:1;">
+          <input type="text" class="form-input datasource-url" id="datasourceUrl" placeholder="https://...">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn btn-primary" id="btnLoadDatasource">加载数据</button>
+        <button class="btn" id="btnTestDatasource">测试连接</button>
+      </div>
+      <div id="datasourceStatus" style="margin-top:10px;font-size:11px;color:var(--muted);"></div>
+    </div>
+
+    <!-- 管理员上传区域 -->
+    <div class="admin-upload-section" id="adminUploadSection" style="display:none;">
+      <h3 style="margin-bottom:12px;">📤 上传新数据</h3>
+      <div class="admin-upload-area" id="adminUploadArea">
+        <div style="font-size:24px;margin-bottom:8px;">📊</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">点击或拖拽上传 Excel 文件</div>
+        <div style="font-size:10px;color:var(--muted);">支持 .xlsx 格式</div>
+      </div>
+      <input type="file" class="admin-upload-input" id="adminUploadInput" accept=".xlsx">
+      <div class="admin-upload-status" id="adminUploadStatus"></div>
+
+      <div class="export-area">
+        <h3 style="margin-bottom:12px;">数据导出</h3>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">上传新数据后，复制下方JSON内容，更新到数据源文件中</p>
+        <textarea class="export-area" id="exportJson" readonly></textarea>
+        <div class="copy-area">
+          <button class="btn btn-primary" id="btnCopyExport">复制JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="datasource-panel" style="margin-top:16px;">
+      <h3 style="margin-bottom:12px;">使用说明</h3>
+      <ul style="font-size:11px;color:var(--text2);line-height:1.6;padding-left:20px;">
+        <li>所有人都可以从配置的数据源URL加载数据</li>
+        <li>管理员登录后可以上传新数据并导出JSON</li>
+        <li>导出的JSON需要保存到可公开访问的位置（如GitHub Gist）</li>
+        <li>更新数据源URL后，所有用户都会看到新数据</li>
+        <li>管理员凭据：admin / bonmm</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已保存</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// 配置
+// ═══════════════════════════════════════════════════════════
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'bonmm';
+
+// 数据源配置（可以修改为你的GitHub Gist或其他可访问的URL）
+let datasourceUrl = 'https://raw.githubusercontent.com/ivyandbonjuice/video-script-annotation/main/dataset.json';
+
+// 全局状态
+let rows = [];
+let currentIdx = 0;
+let allIds = [];
+let currentUser = null;
+
+// 音画配合模式
+let selectedMode = 'voiceover'; // 'voiceover' | 'original'
+
+// 当前案例的解析数据
+let currentStep4Fixed = null;
+
+// ═══════════════════════════════════════════════════════════
+// 工具函数
+// ═══════════════════════════════════════════════════════════
+function esc(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 2000);
+}
+
+// 将时间字符串转换为秒数
+function parseTimeToSeconds(timeStr) {
+  if (!timeStr) return 0;
+  timeStr = String(timeStr).trim();
+  if (/^\d+$/.test(timeStr)) {
+    return parseInt(timeStr, 10);
+  }
+  const parts = timeStr.split(':');
+  if (parts.length === 2) {
+    const mins = parseInt(parts[0], 10) || 0;
+    const secs = parseInt(parts[1], 10) || 0;
+    return mins * 60 + secs;
+  } else if (parts.length === 3) {
+    const hours = parseInt(parts[0], 10) || 0;
+    const mins = parseInt(parts[1], 10) || 0;
+    const secs = parseInt(parts[2], 10) || 0;
+    return hours * 3600 + mins * 60 + secs;
+  }
+  return 0;
+}
+
+function formatSeconds(seconds) {
+  if (seconds < 60) return `${seconds}秒`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return secs > 0 ? `${mins}分${secs}秒` : `${mins}分`;
+}
+
+// 从脚本时间轴中提取时长（秒）
+function extractDurationFromTimeline(timeline) {
+  if (!timeline) return 0;
+  // 匹配时间区间格式: 00:00 - 01:50 或 HH:MM:SS - HH:MM:SS
+  const match = timeline.match(/(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if (match) {
+    const start = parseTimeToSeconds(match[1]);
+    const end = parseTimeToSeconds(match[2]);
+    return end - start;
+  }
+  // 如果只是一个单一时间
+  const singleMatch = timeline.match(/(\d{1,2}:\d{2}(?::\d{2})?)/);
+  if (singleMatch) {
+    return parseTimeToSeconds(singleMatch[1]);
+  }
+  return 0;
+}
+
+function countChineseChars(str) {
+  if (!str) return 0;
+  return (str.match(/[\u4e00-\u9fa5]/g) || []).length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 数据源管理
+// ═══════════════════════════════════════════════════════════
+async function loadFromDatasource() {
+  const loading = document.getElementById('loadingState');
+  const loadingText = document.getElementById('loadingText');
+  const workspace = document.getElementById('workspace');
+
+  loading.style.display = 'flex';
+  workspace.style.display = 'none';
+
+  try {
+    loadingText.textContent = '正在从数据源加载...';
+
+    const response = await fetch(datasourceUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data || !Array.isArray(data.data)) {
+      throw new Error('数据格式无效：需要包含 data 数组');
+    }
+
+    rows = data.data;
+    allIds = rows.map(r => r.id);
+
+    document.getElementById('caseTotal').textContent = rows.length;
+    document.getElementById('currentDatasetName').textContent = data.name || '数据集';
+    document.getElementById('datasourceStatus').innerHTML = `<span style="color:var(--success)">✓ 成功加载 ${rows.length} 条数据</span>`;
+
+    if (rows.length > 0) {
+      currentIdx = 0;
+      renderCase(0);
+      workspace.style.display = 'flex';
+      document.getElementById('caseLayout').classList.add('visible');
+    } else {
+      loadingText.textContent = '暂无数据';
+    }
+
+  } catch (err) {
+    loadingText.textContent = '加载失败：' + err.message;
+    document.getElementById('datasourceStatus').innerHTML = `<span style="color:var(--danger)">✗ ${err.message}</span>`;
+    console.error('Load error:', err);
+  }
+
+  loading.style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+// 模式选择
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    selectedMode = this.dataset.mode;
+    calculateDurationAnalysis();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 时长分析计算（使用v7.2time的逻辑）
+// ═══════════════════════════════════════════════════════════
+function calculateDurationAnalysis() {
+  if (!currentStep4Fixed || !currentStep4Fixed['内容结构']) {
+    return;
+  }
+
+  const structure = currentStep4Fixed['内容结构'];
+
+  // 计算总脚本时长（从所有幕的时间轴提取）
+  let totalDuration = 0;
+  Object.keys(structure).forEach(actKey => {
+    const act = structure[actKey];
+    if (act && act['脚本时间轴']) {
+      totalDuration += extractDurationFromTimeline(act['脚本时间轴']);
+    }
+  });
+
+  document.getElementById('analysisScriptDuration').textContent = formatSeconds(totalDuration);
+
+  // 获取语速
+  const speed = parseInt(document.getElementById('analysisSpeedInput').value) || 200;
+
+  // 计算字数范围（根据模式）
+  const baseChars = Math.round(totalDuration * speed / 60);
+  let idealChars, minChars, maxChars, modeText;
+
+  if (selectedMode === 'voiceover') {
+    // 仅解读模式: 理想字数 = 脚本时长 × (语速/60)
+    // 字数区间 = 脚本时长 × (语速/60) × 0.9 ～ 脚本时长 × (语速/60) × 1.1
+    idealChars = baseChars;
+    minChars = Math.round(baseChars * 0.9);
+    maxChars = Math.round(baseChars * 1.1);
+    modeText = '仅解读';
+  } else {
+    // 混合模式: 理想字数 = (脚本时长 × (语速/60)) × 0.8
+    // 字数区间 = 脚本时长 × (语速/60) × 0.72 ～ 脚本时长 × (语速/60) × 0.88
+    idealChars = Math.round(baseChars * 0.8);
+    minChars = Math.round(baseChars * 0.72);
+    maxChars = Math.round(baseChars * 0.88);
+    modeText = '混合模式';
+  }
+
+  document.getElementById('idealCharRange').innerHTML = `<b>${idealChars}</b> <span class="min-max">(${minChars}-${maxChars})</span>`;
+
+  // 计算实际画外音字数
+  let actualChars = 0;
+  Object.keys(structure).forEach(actKey => {
+    const act = structure[actKey];
+    if (act && act['画外音文案']) {
+      actualChars += countChineseChars(act['画外音文案']);
+    }
+  });
+
+  document.getElementById('voiceoverCharCount').textContent = `${actualChars} 字`;
+
+  // 判断匹配情况
+  const matchResult = document.getElementById('textMatchResult');
+  const diff = actualChars - idealChars;
+  const tolerance = Math.round(idealChars * 0.1); // ±10% 容差
+
+  if (actualChars >= minChars && actualChars <= maxChars) {
+    matchResult.className = 'duration-value ok';
+    matchResult.textContent = '✅ 匹配';
+  } else if (actualChars > maxChars) {
+    matchResult.className = 'duration-value danger';
+    matchResult.textContent = `❌ 超出 ${actualChars - maxChars} 字`;
+  } else {
+    matchResult.className = 'duration-value warn';
+    matchResult.textContent = `⚠️ 不足 ${minChars - actualChars} 字`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Tab切换
+// ═══════════════════════════════════════════════════════════
+function switchModelTab(tabName) {
+  const tabs = document.querySelectorAll('.model-preview-tab');
+  const panels = document.querySelectorAll('.model-preview-panel');
+
+  tabs.forEach(tab => tab.classList.remove('active'));
+  panels.forEach(panel => panel.classList.remove('active'));
+
+  if (tabName === 'voiceover') {
+    tabs[0].classList.add('active');
+    document.getElementById('voiceoverPanel').classList.add('active');
+  } else {
+    tabs[1].classList.add('active');
+    document.getElementById('fullScriptPanel').classList.add('active');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 搜索功能
+// ═══════════════════════════════════════════════════════════
+const idSearchInput = document.getElementById('idSearchInput');
+const idDropdown = document.getElementById('idDropdown');
+
+idSearchInput.addEventListener('focus', () => {
+  if (allIds.length > 0) {
+    renderIdDropdown(allIds.slice(0, 20));
+    idDropdown.classList.add('visible');
+  }
+});
+
+idSearchInput.addEventListener('input', () => {
+  const query = idSearchInput.value.trim().toLowerCase();
+  if (!query) {
+    renderIdDropdown(allIds.slice(0, 20));
+  } else {
+    const filtered = allIds.filter(id => id.toLowerCase().includes(query)).slice(0, 20);
+    renderIdDropdown(filtered);
+  }
+  idDropdown.classList.add('visible');
+});
+
+document.getElementById('btnSearch').addEventListener('click', () => {
+  const id = idSearchInput.value.trim();
+  if (id) goToId(id);
+});
+
+function renderIdDropdown(ids) {
+  if (!ids.length) {
+    idDropdown.innerHTML = '<div class="id-dropdown-item" style="color:var(--muted)">无匹配</div>';
+    return;
+  }
+  idDropdown.innerHTML = ids.map(id =>
+    `<div class="id-dropdown-item" data-id="${esc(id)}">${esc(id.substring(0, 20))}${id.length > 20 ? '...' : ''}</div>`
+  ).join('');
+}
+
+idDropdown.addEventListener('click', (e) => {
+  const item = e.target.closest('.id-dropdown-item');
+  if (item && item.dataset.id) {
+    idSearchInput.value = item.dataset.id;
+    idDropdown.classList.remove('visible');
+    goToId(item.dataset.id);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.id-search-container')) {
+    idDropdown.classList.remove('visible');
+  }
+});
+
+function goToId(targetId) {
+  const idx = rows.findIndex(r => r.id === targetId || r.id === String(targetId));
+  if (idx >= 0) {
+    renderCase(idx);
+    showToast(`已定位到 ID: ${targetId}`);
+  } else {
+    showToast(`未找到 ID: ${targetId}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 渲染案例
+// ═══════════════════════════════════════════════════════════
+function renderCase(idx) {
+  if (idx < 0 || idx >= rows.length) return;
+  currentIdx = idx;
+  const d = rows[idx];
+
+  document.getElementById('infoCaseId').textContent = `Case #${idx + 1}`;
+  document.getElementById('caseNum').textContent = idx + 1;
+  document.getElementById('infoTitle').textContent = d.title || `ID: ${d.id}`;
+  document.getElementById('metaId').textContent = d.id;
+  document.getElementById('metaUrl').textContent = d.video_url || '—';
+  document.getElementById('btnPrev').disabled = idx === 0;
+  document.getElementById('btnNext').disabled = idx === rows.length - 1;
+
+  const videoEl = document.getElementById('videoPlayer');
+  if (d.video_url) {
+    videoEl.src = d.video_url;
+    videoEl.load();
+  } else {
+    videoEl.src = '';
+  }
+
+  // 解析total_json
+  currentStep4Fixed = parseModelOutput(d.total_json);
+
+  // 渲染模型输出
+  renderScriptOutput(d.total_json);
+
+  // 渲染模型预览（文案预览 + 完整脚本 Tab面板）
+  renderModelPreview(currentStep4Fixed);
+
+  // 显示并计算时长分析
+  if (currentStep4Fixed && currentStep4Fixed['内容结构']) {
+    document.getElementById('durationAnalysisSection').style.display = 'block';
+    calculateDurationAnalysis();
+  } else {
+    document.getElementById('durationAnalysisSection').style.display = 'none';
+  }
+
+  ['col1','col2'].forEach(id => document.getElementById(id).scrollTop = 0);
+}
+
+function parseModelOutput(raw) {
+  if (!raw || raw === 'nan' || raw === 'NaN' || raw === 'null') return null;
+
+  let s = String(raw).trim();
+  if (s.startsWith('"') && s.endsWith('"')) {
+    s = s.slice(1, -1);
+  }
+  s = s.replace(/""/g, '"');
+
+  s = s.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  try { return JSON.parse(s); } catch(e) {}
+
+  let lines = s.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    let trimmed = line.trimEnd();
+
+    const colonIdx = trimmed.indexOf('": "');
+    if (colonIdx >= 0) {
+      const afterColon = colonIdx + 4;
+      let endQuoteIdx = -1;
+      let hasTailComma = false;
+
+      if (trimmed.endsWith('",')) {
+        endQuoteIdx = trimmed.length - 2;
+        hasTailComma = true;
+      } else if (trimmed.endsWith('"')) {
+        endQuoteIdx = trimmed.length - 1;
+      }
+
+      if (endQuoteIdx > afterColon) {
+        const valueContent = trimmed.substring(afterColon, endQuoteIdx);
+        let hasUnescaped = false;
+        for (let j = 0; j < valueContent.length; j++) {
+          if (valueContent[j] === '"' && (j === 0 || valueContent[j-1] !== '\\')) {
+            hasUnescaped = true;
+            break;
+          }
+        }
+
+        if (hasUnescaped) {
+          let escaped = '';
+          for (let j = 0; j < valueContent.length; j++) {
+            if (valueContent[j] === '"' && (j === 0 || valueContent[j-1] !== '\\')) {
+              escaped += '\\"';
+            } else {
+              escaped += valueContent[j];
+            }
+          }
+          const prefix = trimmed.substring(0, afterColon);
+          trimmed = prefix + escaped + '"' + (hasTailComma ? ',' : '');
+          lines[i] = trimmed;
+        }
+      }
+    }
+
+    if (i < lines.length - 1) {
+      trimmed = lines[i].trimEnd();
+      const nextLine = lines[i + 1];
+      const nextTrimmed = nextLine.trim();
+
+      if (trimmed && nextTrimmed) {
+        const endsWithValue = /["\}\]\d]$/.test(trimmed);
+        const notEndsWithComma = !trimmed.endsWith(',');
+        const notEndsWithOpen = !trimmed.endsWith('{') && !trimmed.endsWith('[') && !trimmed.endsWith(':');
+        const nextIsKeyOrClose = /^"/.test(nextTrimmed) || nextTrimmed === '}' || nextTrimmed === ']' || nextTrimmed.startsWith('},') || nextTrimmed.startsWith('],');
+
+        if (endsWithValue && notEndsWithComma && notEndsWithOpen && nextIsKeyOrClose) {
+          lines[i] = trimmed + ',';
+        }
+      }
+    }
+  }
+
+  s = lines.join('\n');
+
+  try { return JSON.parse(s); } catch(e) { return null; }
+}
+
+function renderScriptOutput(rawOutput) {
+  const container = document.getElementById('scriptContainer');
+  if (!rawOutput?.trim()) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div></div>';
+    return;
+  }
+
+  const parsed = parseModelOutput(rawOutput);
+  if (!parsed) {
+    container.innerHTML = `<div class="script-section"><div class="script-section-body visible"><pre style="white-space:pre-wrap;font-size:10px">${esc(rawOutput)}</pre></div></div>`;
+    return;
+  }
+
+  let html = `<div class="script-section">
+    <div class="script-section-head">
+      <span class="section-icon">🎬</span>
+      <span class="section-title">整体规划</span>
+      <span class="section-toggle">▼</span>
+    </div>
+    <div class="script-section-body visible">`;
+
+  html += `<div class="script-field"><div class="field-label">⏱ 整体时长</div><div class="field-value timeline">${esc(parsed['整体时长'] || '—')}</div></div>`;
+  html += `<div class="script-field"><div class="field-label">🎙 解说人设</div><div class="field-value">${esc(parsed['解说人设'] || '—')}</div></div>`;
+  html += `</div></div>`;
+
+  const structure = parsed['内容结构'] || {};
+  const sectionIcons = ['🎣', '📖', '⚡', '🔥', '💥', '💎', '🎬', '🎯', '📌', '🌟'];
+  let sectionIdx = 0;
+
+  Object.keys(structure).forEach((sectionKey, keyIndex) => {
+    const content = structure[sectionKey];
+    if (!content || typeof content !== 'object') return;
+
+    const icon = sectionIcons[sectionIdx % sectionIcons.length];
+    sectionIdx++;
+
+    const getField = (obj, ...keys) => {
+      for (const k of keys) {
+        if (obj[k] !== undefined) return obj[k];
+      }
+      return null;
+    };
+
+    const timeline = getField(content, '脚本时间轴');
+    const editPoint = getField(content, '剪辑要点');
+    const mustScene = getField(content, 'Must画面建议', 'Must 画面建议');
+    const maybeScene = getField(content, 'Maybe画面建议', 'Maybe 画面建议');
+    const voiceover = getField(content, '画外音文案');
+    const soundEffect = getField(content, '音效建议');
+    const avMode = getField(content, '音画配合模式');
+
+    html += `<div class="script-section">
+      <div class="script-section-head">
+        <span class="section-icon">${icon}</span>
+        <span class="section-title">${esc(sectionKey)}</span>
+        <span class="section-toggle">▼</span>
+      </div>
+      <div class="script-section-body">`;
+
+    if (timeline) html += `<div class="script-field"><div class="field-label">⏱ 脚本时间轴</div><div class="field-value timeline">${esc(timeline)}</div></div>`;
+    if (editPoint) html += `<div class="script-field"><div class="field-label">✂️ 剪辑要点</div><div class="field-value">${esc(editPoint)}</div></div>`;
+    if (mustScene) html += `<div class="script-field"><div class="field-label">🔴 Must画面</div><div class="field-value must">${esc(mustScene)}</div></div>`;
+    if (maybeScene) html += `<div class="script-field"><div class="field-label">🟢 Maybe画面</div><div class="field-value maybe">${esc(maybeScene)}</div></div>`;
+    if (voiceover) html += `<div class="script-field"><div class="field-label">📝 画外音 (${countChineseChars(voiceover)}字)</div><div class="field-value voiceover">${esc(voiceover)}</div></div>`;
+    if (soundEffect) html += `<div class="script-field"><div class="field-label">🔊 音效</div><div class="field-value">${esc(soundEffect)}</div></div>`;
+    if (avMode) html += `<div class="script-field"><div class="field-label">🎞 音画模式</div><div class="field-value">${esc(avMode)}</div></div>`;
+
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
+
+  // 绑定section展开/折叠事件
+  document.querySelectorAll('.script-section-head').forEach(head => {
+    head.addEventListener('click', () => {
+      head.nextElementSibling.classList.toggle('visible');
+      const toggle = head.querySelector('.section-toggle');
+      toggle.textContent = toggle.textContent === '▼' ? '▲' : '▼';
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// 模型预览渲染（Tab面板：文案预览 + 完整脚本）
+// ═══════════════════════════════════════════════════════════
+function renderModelPreview(step4Fixed) {
+  const section = document.getElementById('modelPreviewSection');
+  const voiceoverPanel = document.getElementById('voiceoverPanel');
+  const fullScriptPanel = document.getElementById('fullScriptPanel');
+
+  if (!step4Fixed || !step4Fixed['内容结构']) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+
+  const structure = step4Fixed['内容结构'];
+
+  // ========== 文案预览面板 ==========
+  let voiceoverHtml = '';
+  let totalChars = 0;
+  let actCount = 0;
+
+  Object.keys(structure).forEach((actKey, idx) => {
+    const act = structure[actKey];
+    if (!act || typeof act !== 'object') return;
+
+    const voiceoverText = act['画外音文案'];
+    const timeline = act['脚本时间轴'] || '';
+
+    if (voiceoverText) {
+      const chars = countChineseChars(voiceoverText);
+      totalChars += chars;
+      actCount++;
+
+      voiceoverHtml += `<div class="voiceover-preview-item">
+        <div class="voiceover-preview-header">
+          <span class="voiceover-time-badge">${esc(timeline)}</span>
+          <span class="voiceover-act-name">${esc(actKey)}</span>
+        </div>
+        <div class="voiceover-preview-text">${esc(voiceoverText)}</div>
+      </div>`;
+    }
+  });
+
+  // 统计信息
+  const estimatedDuration = Math.round(totalChars / 3);
+  const minutes = Math.floor(estimatedDuration / 60);
+  const seconds = estimatedDuration % 60;
+  voiceoverHtml += `<div class="voiceover-stats">
+    共 <b>${actCount}</b> 幕 · 总字数 <b>${totalChars}</b> 字 · 预估时长 <b>${minutes}分${seconds}秒</b>
+  </div>`;
+
+  voiceoverPanel.innerHTML = voiceoverHtml;
+
+  // ========== 完整脚本面板 ==========
+  let fullHtml = '';
+
+  // 整体信息
+  if (step4Fixed['整体时长']) {
+    fullHtml += `<div class="full-script-section">
+      <div class="full-script-title">⏱ 整体时长</div>
+      <div class="full-script-field"><span class="full-script-val">${esc(step4Fixed['整体时长'])}</span></div>
+    </div>`;
+  }
+  if (step4Fixed['解说人设']) {
+    fullHtml += `<div class="full-script-section">
+      <div class="full-script-title">🎙 解说人设</div>
+      <div class="full-script-field"><span class="full-script-val">${esc(step4Fixed['解说人设'])}</span></div>
+    </div>`;
+  }
+
+  // 内容结构
+  fullHtml += `<div class="full-script-section"><div class="full-script-title">📚 内容结构</div>`;
+  Object.keys(structure).forEach((actKey, idx) => {
+    const act = structure[actKey];
+    if (!act || typeof act !== 'object') return;
+
+    fullHtml += `<div class="full-script-act">
+      <div class="full-script-act-title">${idx + 1}. ${esc(actKey)}</div>`;
+
+    const fieldOrder = ['脚本时间轴', '战术意图', 'Must画面建议', 'Maybe画面建议', '画外音文案', '音效建议', '音画配合模式'];
+    fieldOrder.forEach(key => {
+      if (act[key]) {
+        fullHtml += `<div class="full-script-field">
+          <span class="full-script-key">${esc(key)}:</span>
+          <span class="full-script-val">${esc(act[key])}</span>
+        </div>`;
+      }
+    });
+    fullHtml += `</div>`;
+  });
+  fullHtml += `</div>`;
+
+  // 视频包装规范
+  const pkg = step4Fixed['视频包装规范'];
+  if (pkg && typeof pkg === 'object') {
+    fullHtml += `<div class="full-script-section"><div class="full-script-title">🎨 视频包装规范</div>`;
+    Object.keys(pkg).forEach(key => {
+      if (pkg[key]) {
+        fullHtml += `<div class="full-script-field">
+          <span class="full-script-key">${esc(key)}:</span>
+          <span class="full-script-val">${esc(pkg[key])}</span>
+        </div>`;
+      }
+    });
+    fullHtml += `</div>`;
+  }
+
+  fullScriptPanel.innerHTML = fullHtml;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 案例切换
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if (currentIdx > 0) renderCase(currentIdx - 1);
+});
+
+document.getElementById('btnNext').addEventListener('click', () => {
+  if (currentIdx < rows.length - 1) renderCase(currentIdx + 1);
+});
+
+document.getElementById('btnJump').addEventListener('click', () => {
+  const val = parseInt(document.getElementById('jumpInput').value);
+  if (val && val >= 1 && val <= rows.length) {
+    renderCase(val - 1);
+  }
+});
+
+document.getElementById('jumpInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btnJump').click();
+});
+
+// ═══════════════════════════════════════════════════════════
+// 项目菜单
+// ═══════════════════════════════════════════════════════════
+document.getElementById('projectDropdownBtn').addEventListener('click', () => {
+  document.getElementById('projectMenu').classList.toggle('visible');
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.project-dropdown')) {
+    document.getElementById('projectMenu').classList.remove('visible');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// 数据源管理
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btnDatasource').addEventListener('click', () => {
+  document.getElementById('datasourcePage').classList.add('visible');
+  document.getElementById('datasourceUrl').value = datasourceUrl;
+});
+
+document.getElementById('btnBackToMain').addEventListener('click', () => {
+  document.getElementById('datasourcePage').classList.remove('visible');
+});
+
+document.getElementById('btnLoadDatasource').addEventListener('click', () => {
+  datasourceUrl = document.getElementById('datasourceUrl').value.trim();
+  if (datasourceUrl) {
+    loadFromDatasource();
+  } else {
+    showToast('请输入数据源URL');
+  }
+});
+
+document.getElementById('btnTestDatasource').addEventListener('click', async () => {
+  const url = document.getElementById('datasourceUrl').value.trim();
+  const status = document.getElementById('datasourceStatus');
+  if (!url) {
+    status.innerHTML = '<span style="color:var(--warn)">请输入URL</span>';
+    return;
+  }
+
+  status.innerHTML = '<span>测试中...</span>';
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      const count = Array.isArray(data.data) ? data.data.length : 'N/A';
+      status.innerHTML = `<span style="color:var(--success)">✓ 连接成功 (数据量: ${count})</span>`;
+    } else {
+      status.innerHTML = `<span style="color:var(--danger)">✗ HTTP ${response.status}</span>`;
+    }
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--danger)">✗ ${err.message}</span>`;
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// 管理员上传功能
+// ═══════════════════════════════════════════════════════════
+const adminUploadArea = document.getElementById('adminUploadArea');
+const adminUploadInput = document.getElementById('adminUploadInput');
+const adminUploadSection = document.getElementById('adminUploadSection');
+
+adminUploadArea.addEventListener('click', () => adminUploadInput.click());
+adminUploadArea.addEventListener('dragover', e => e.preventDefault());
+adminUploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) handleAdminUpload(e.dataTransfer.files[0]);
+});
+adminUploadInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleAdminUpload(e.target.files[0]);
+});
+
+async function handleAdminUpload(file) {
+  const status = document.getElementById('adminUploadStatus');
+  status.textContent = '正在解析...';
+
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetNames = workbook.SheetNames;
+
+    const caseSheet = workbook.Sheets[sheetNames[0]];
+    const caseData = XLSX.utils.sheet_to_json(caseSheet);
+
+    const newData = caseData.map((row, idx) => {
+      return {
+        id: String(row['data_id'] || row['ID'] || idx + 1),
+        video_url: row['video_url'] || row['视频链接'] || '',
+        total_json: row['total_json'] || row['模型回复'] || '',
+        title: row['title'] || ''
+      };
+    });
+
+    // 创建导出JSON
+    const exportObj = {
+      version: '1.0',
+      name: file.name.replace('.xlsx', ''),
+      updatedAt: new Date().toISOString().slice(0, 10),
+      data: newData
+    };
+
+    document.getElementById('exportJson').value = JSON.stringify(exportObj, null, 2);
+    status.innerHTML = `<span style="color:var(--success)">✓ 成功解析 ${newData.length} 条数据，请复制下方JSON更新到数据源</span>`;
+
+  } catch (err) {
+    status.innerHTML = `<span style="color:var(--danger)">✗ 解析失败: ${err.message}</span>`;
+  }
+}
+
+document.getElementById('btnCopyExport').addEventListener('click', () => {
+  const exportJson = document.getElementById('exportJson');
+  navigator.clipboard.writeText(exportJson.value).then(() => {
+    showToast('已复制到剪贴板');
+  }).catch(() => {
+    showToast('复制失败');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// 登录功能
+// ═══════════════════════════════════════════════════════════
+function showLoginModal() {
+  document.getElementById('loginModal').classList.add('visible');
+}
+
+function hideLoginModal() {
+  document.getElementById('loginModal').classList.remove('visible');
+}
+
+function handleLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    currentUser = username;
+    hideLoginModal();
+    // 显示管理员上传区域
+    adminUploadSection.style.display = 'block';
+    showToast('登录成功');
+  } else {
+    showToast('用户名或密码错误');
+  }
+}
+
+function handleLogout() {
+  currentUser = null;
+  adminUploadSection.style.display = 'none';
+  showToast('已退出登录');
+}
+
+document.getElementById('btnLoginConfirm').addEventListener('click', (e) => {
+  e.stopPropagation();
+  handleLogin();
+});
+
+document.getElementById('btnLoginCancel').addEventListener('click', (e) => {
+  e.stopPropagation();
+  hideLoginModal();
+});
+
+document.getElementById('loginModal').addEventListener('click', (e) => {
+  if (e.target.id === 'loginModal') {
+    hideLoginModal();
+  }
+});
+
+// 初始化加载
+loadFromDatasource();
+</script>
+</body>
+</html>

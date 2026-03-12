@@ -510,12 +510,12 @@ body {
           <div class="input-group" style="flex: 1;">
             <label>音画模式：</label>
             <div class="mode-selector" style="flex: 1;">
-              <button class="mode-btn active" data-mode="voiceover">纯画外音</button>
-              <button class="mode-btn" data-mode="original">原片解读</button>
+              <button class="mode-btn active" data-mode="voiceover">仅解读</button>
+              <button class="mode-btn" data-mode="original">混合模式</button>
             </div>
             <span class="hint-wrapper">
               <span class="hint-icon">?</span>
-              <span class="hint-tooltip">纯画外音: 0.9~1.1倍 | 原片解读: 0.72~0.88倍(扣除20%原声)</span>
+              <span class="hint-tooltip">仅解读: 字数=时长×语速/60, 区间±10% | 混合模式: 字数=时长×语速/60×0.8, 区间±20%</span>
             </span>
           </div>
         </div>
@@ -785,27 +785,28 @@ function calculateIdealChars() {
   }
 
   // 计算字数范围（根据模式）
-  let minRatio, maxRatio, modeText;
-  if (selectedMode === 'voiceover') {
-    // 纯画外音: 0.9 ~ 1.1
-    minRatio = 0.9;
-    maxRatio = 1.1;
-    modeText = '纯画外音';
-  } else {
-    // 原片解读配合模式: 0.72 ~ 0.88
-    // 扣除20%原声时长后，再上下浮动10%
-    minRatio = 0.72;
-    maxRatio = 0.88;
-    modeText = '原片解读';
-  }
-
   const baseChars = Math.round(duration * speed / 60);
-  const minChars = Math.round(baseChars * minRatio);
-  const maxChars = Math.round(baseChars * maxRatio);
+  let idealChars, minChars, maxChars, modeText;
+
+  if (selectedMode === 'voiceover') {
+    // 仅解读模式: 理想字数 = 脚本时长 × (语速/60)
+    // 字数区间 = 脚本时长 × (语速/60) × 0.9 ～ 脚本时长 × (语速/60) × 1.1
+    idealChars = baseChars;
+    minChars = Math.round(baseChars * 0.9);
+    maxChars = Math.round(baseChars * 1.1);
+    modeText = '仅解读';
+  } else {
+    // 混合模式: 理想字数 = (脚本时长 × (语速/60)) × 0.8
+    // 字数区间 = 脚本时长 × (语速/60) × 0.72 ～ 脚本时长 × (语速/60) × 0.88
+    idealChars = Math.round(baseChars * 0.8);
+    minChars = Math.round(baseChars * 0.72);
+    maxChars = Math.round(baseChars * 0.88);
+    modeText = '混合模式';
+  }
 
   document.getElementById('displaySpeed').textContent = `${speed} 字/分`;
   document.getElementById('displayMode').textContent = modeText;
-  document.getElementById('idealCharRange').innerHTML = `<b>${baseChars}</b> <span class="min-max">(${minChars}-${maxChars})</span>`;
+  document.getElementById('idealCharRange').innerHTML = `<b>${idealChars}</b> <span class="min-max">(${minChars}-${maxChars})</span>`;
   document.getElementById('charRangeDetail').textContent = `${minChars} ~ ${maxChars} 字`;
 }
 

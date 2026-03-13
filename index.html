@@ -1,0 +1,2820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频脚本数据预览工具 v7.4</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e2e5eb;
+  --border2: #d0d4de;
+  --accent: #8b5cf6;
+  --accent-light: #f3e8ff;
+  --accent-dark: #7c3aed;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --warn: #d97706;
+  --warn-light: #fffbeb;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --info: #0ea5e9;
+  --info-light: #f0f9ff;
+  --text: #111827;
+  --text2: #374151;
+  --muted: #6b7280;
+  --muted2: #9ca3af;
+  --nav-h: 52px;
+  --sans: 'Inter', -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+/* ── NAVBAR ─────────────────────────────────────────────── */
+.navbar {
+  height: var(--nav-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  z-index: 100;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.version-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  color: white;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+}
+
+.nav-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+.nav-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+.case-counter {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0 8px; height: 28px;
+  display: flex; align-items: center; gap: 3px;
+}
+
+.btn {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text2);
+  font-size: 11px; font-family: var(--sans); cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.jump-wrap { display: flex; align-items: center; gap: 3px; }
+.jump-input {
+  width: 50px; height: 28px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface2); padding: 0 6px;
+  font-size: 11px; font-family: var(--mono); color: var(--text);
+  outline: none; text-align: center;
+}
+
+/* ID 搜索选择器 */
+.id-search-wrap {
+  display: flex; align-items: center; gap: 4px;
+}
+.id-search-input {
+  width: 120px; height: 28px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); padding: 0 8px;
+  font-size: 11px; font-family: var(--mono); color: var(--text);
+  outline: none;
+}
+.id-search-input:focus { border-color: var(--accent); }
+.id-search-input::placeholder { color: var(--muted2); }
+.id-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-height: 200px; overflow-y: auto; z-index: 200;
+  display: none;
+}
+.id-dropdown.visible { display: block; }
+.id-dropdown-item {
+  padding: 6px 10px; font-size: 11px; cursor: pointer;
+  font-family: var(--mono);
+}
+.id-dropdown-item:hover { background: var(--accent-light); color: var(--accent); }
+.id-dropdown-item.selected { background: var(--accent); color: white; }
+.id-search-container { position: relative; }
+
+.ratio-badge {
+  font-size: 10px; font-weight: 600;
+  background: var(--info-light); color: var(--info);
+  border: 1px solid #7dd3fc; border-radius: 4px;
+  padding: 2px 8px; font-family: var(--mono);
+}
+
+.workspace { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── UPLOAD SCREEN ──────────────────────────────── */
+.upload-screen {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px; padding: 40px;
+  overflow-y: auto;
+}
+
+.upload-card {
+  background: var(--surface); border: 2px dashed var(--border2);
+  border-radius: 16px; padding: 40px 60px; text-align: center;
+  cursor: pointer; transition: all 0.2s; position: relative;
+  max-width: 500px; width: 100%;
+}
+.upload-card:hover { border-color: var(--accent); background: var(--accent-light); }
+.upload-card input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-icon { font-size: 42px; margin-bottom: 12px; }
+.upload-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.upload-desc { font-size: 12px; color: var(--muted); }
+.upload-status { font-size: 11px; color: var(--success); margin-top: 8px; font-weight: 600; }
+
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(245,246,248,0.92);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 999; gap: 14px;
+}
+.loading-overlay.visible { display: flex; }
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── CASE LAYOUT ────────────────────────────────────────── */
+.case-layout { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.case-layout.visible { display: flex; }
+
+.hints-bar {
+  height: 26px; background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0;
+}
+.hint-item { font-size: 9px; color: var(--muted); display: flex; align-items: center; gap: 3px; }
+kbd {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 2px; padding: 0 3px; font-size: 8px;
+  font-family: var(--mono); color: var(--text2); line-height: 14px;
+}
+
+.info-bar {
+  height: 36px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0;
+}
+.case-id-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  background: var(--accent); color: white; border-radius: 4px; padding: 2px 8px;
+}
+.title-text {
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── TWO COLUMNS WITH RESIZER ────────────────────────────── */
+.two-cols {
+  flex: 1; display: flex;
+  overflow: hidden;
+}
+
+.col {
+  overflow-y: auto; 
+  padding: 10px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px;
+  min-width: 200px;
+}
+
+.col-left {
+  flex: 6;
+  border-right: none;
+  background: var(--surface);
+}
+
+.col-right {
+  flex: 4;
+  background: var(--bg);
+}
+
+.col-header {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
+  padding-bottom: 6px; border-bottom: 2px solid;
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+.col-header.purple { border-color: #8b5cf6; color: #8b5cf6; }
+.col-header.green  { border-color: #10b981; color: #10b981; }
+
+/* ── RESIZER ─────────────────────────────────────────────── */
+.resizer {
+  width: 6px;
+  background: var(--border);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  position: relative;
+}
+.resizer:hover, .resizer.active {
+  background: var(--accent);
+}
+.resizer::after {
+  content: '⋮';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+.resizer:hover::after, .resizer.active::after {
+  color: white;
+}
+
+/* ── COL 1: Video ── */
+.video-wrap {
+  background: #000; border-radius: 6px; overflow: hidden;
+  aspect-ratio: 16/9; flex-shrink: 0;
+}
+.video-wrap video { width: 100%; height: 100%; display: block; }
+
+.meta-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px;
+}
+.meta-box-title { font-size: 9px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.meta-row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; font-size: 10px; }
+.meta-label { color: var(--muted); min-width: 60px; }
+.meta-value { color: var(--text2); flex: 1; }
+.meta-value.mono { font-family: var(--mono); }
+
+/* 模型回复预览区域 - 暗色主题 Tab 风格 */
+.model-preview-section {
+  background: #1e1e2e; border: 1px solid #313244;
+  border-radius: 8px; margin-top: 8px;
+  flex-shrink: 0;
+}
+.model-preview-tabs {
+  display: flex; gap: 0; background: #181825;
+  border-bottom: 1px solid #313244;
+}
+.model-preview-tab {
+  padding: 10px 20px; font-size: 12px; font-weight: 600;
+  color: #a6adc8; cursor: pointer;
+  border: none; background: transparent;
+  transition: all 0.2s;
+}
+.model-preview-tab:hover { color: #cdd6f4; background: #313244; }
+.model-preview-tab.active {
+  color: #f38ba8; background: #1e1e2e;
+  border-bottom: 2px solid #f38ba8;
+}
+.model-preview-body {
+  padding: 0;
+}
+.model-preview-panel {
+  display: none; padding: 16px;
+}
+.model-preview-panel.active { display: block; }
+
+/* 文案预览面板 */
+.voiceover-preview-item {
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px solid #313244;
+}
+.voiceover-preview-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.voiceover-preview-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.voiceover-time-badge {
+  font-family: var(--mono); font-size: 10px;
+  background: #45475a; color: #fab387;
+  padding: 3px 8px; border-radius: 4px;
+}
+.voiceover-act-name {
+  font-size: 11px; font-weight: 600; color: #f9e2af;
+}
+.voiceover-preview-text {
+  font-size: 12px; color: #cdd6f4; line-height: 1.7;
+  padding: 10px 14px; background: transparent;
+  border-left: 3px solid #45475a;
+  margin-left: 4px;
+}
+.voiceover-stats {
+  font-size: 10px; color: #6c7086; margin-top: 12px;
+  padding: 8px 12px; background: #181825;
+  border-radius: 4px; text-align: center;
+}
+.voiceover-stats b { color: #89b4fa; }
+
+/* 完整脚本面板 */
+.full-script-section {
+  margin-bottom: 12px;
+}
+.full-script-title {
+  font-size: 11px; font-weight: 700; color: #89b4fa;
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px dashed #45475a;
+}
+.full-script-field {
+  margin-bottom: 6px; font-size: 10px;
+}
+.full-script-key {
+  color: #6c7086; font-weight: 600;
+}
+.full-script-val {
+  color: #cdd6f4; padding: 4px 8px;
+  background: #181825; border-radius: 4px;
+  display: block; margin-top: 2px;
+}
+.full-script-act {
+  margin-bottom: 12px; padding: 10px;
+  background: #181825; border-radius: 6px;
+  border-left: 3px solid #89b4fa;
+}
+.full-script-act-title {
+  font-size: 10px; font-weight: 700; color: #f9e2af;
+  margin-bottom: 8px;
+}
+
+/* ── COL 2: Script Output ── */
+.script-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; margin-bottom: 8px;
+}
+.script-section-head {
+  background: var(--surface2); padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.script-section-head:hover { background: var(--accent-light); }
+.section-icon { font-size: 14px; }
+.section-title { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; }
+.section-badge { font-size: 9px; background: var(--accent-light); color: var(--accent); padding: 1px 6px; border-radius: 10px; }
+.section-toggle { font-size: 9px; color: var(--muted); }
+.script-section-body { padding: 10px; display: none; }
+.script-section-body.visible { display: block; }
+
+.script-field { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--border); }
+.script-field:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.field-label { font-size: 9px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.field-value { font-size: 11px; color: var(--text2); line-height: 1.5; background: var(--surface2); border-radius: 4px; padding: 6px 8px; }
+.field-value.timeline { font-family: var(--mono); font-size: 10px; background: var(--info-light); border-left: 3px solid var(--info); }
+.field-value.voiceover { background: var(--warn-light); border-left: 3px solid var(--warn); }
+.field-value.must { background: var(--danger-light); border-left: 3px solid var(--danger); }
+.field-value.maybe { background: var(--success-light); border-left: 3px solid var(--success); }
+
+.timestamp-tag {
+  display: inline-block; font-family: var(--mono); font-size: 9px;
+  background: var(--info); color: white; padding: 1px 4px; border-radius: 3px; margin-right: 4px; cursor: pointer;
+}
+.timestamp-tag:hover { background: var(--accent); }
+
+.duration-analysis {
+  background: linear-gradient(135deg, #fdf4ff, #eff6ff);
+  border: 1px solid #c4b5fd; border-radius: 6px; padding: 10px; margin-bottom: 8px;
+}
+.duration-analysis-title { font-size: 10px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; }
+.duration-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; }
+.duration-label { color: var(--muted); min-width: 85px; }
+.duration-value { font-family: var(--mono); color: var(--text); font-weight: 600; }
+.duration-value.ok { color: var(--success); }
+.duration-value.warn { color: var(--warn); }
+.duration-value.danger { color: var(--danger); }
+.duration-input {
+  width: 60px; height: 22px;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 0 6px; font-size: 10px; font-family: var(--mono);
+  color: var(--text); background: var(--surface);
+  outline: none; text-align: center;
+}
+.duration-input:focus { border-color: var(--accent); }
+.duration-calc-btn {
+  height: 22px; padding: 0 8px;
+  border: 1px solid var(--accent); border-radius: 4px;
+  background: var(--accent); color: white;
+  font-size: 9px; font-weight: 600; cursor: pointer;
+}
+.duration-calc-btn:hover { background: var(--accent-dark); }
+.duration-result {
+  font-size: 9px; color: var(--success); font-weight: 600;
+  margin-left: 6px;
+}
+.duration-original {
+  font-size: 9px; color: var(--muted); font-style: italic;
+  margin-left: 8px;
+}
+.duration-diff {
+  font-size: 9px; font-weight: 600;
+  margin-left: 6px;
+}
+.duration-diff.positive { color: var(--danger); }
+.duration-diff.negative { color: var(--success); }
+.duration-diff.zero { color: var(--muted); }
+.scene-input-group {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}
+.scene-input {
+  width: 90px; height: 22px;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 0 4px; font-size: 9px; font-family: var(--mono);
+  color: var(--text); background: var(--surface);
+  outline: none; text-align: center;
+}
+.scene-input:focus { border-color: var(--accent); }
+.scene-input::placeholder { color: var(--muted2); font-size: 8px; }
+.scene-input-label {
+  font-size: 8px; color: var(--muted); margin-right: 2px;
+}
+.add-scene-btn {
+  width: 20px; height: 20px;
+  border: 1px dashed var(--border); border-radius: 4px;
+  background: var(--surface); color: var(--muted);
+  font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.add-scene-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Mode Selector for 音画配合模式 */
+.mode-selector { display: flex; gap: 4px; }
+.mode-btn {
+  flex: 1; padding: 3px 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
+  color: var(--text2); font-size: 9px; cursor: pointer; transition: all 0.15s; height: 20px;
+}
+.mode-btn:hover { border-color: var(--accent); }
+.mode-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Char Range Badge */
+.char-range {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 6px; background: var(--accent-light); border-radius: 3px;
+  font-size: 10px; font-weight: 600; color: var(--accent-dark);
+}
+.char-range .min-max { font-size: 8px; color: var(--muted); font-weight: 400; }
+
+/* Match Badge */
+.match-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600;
+}
+.match-badge.available { background: var(--success-light); color: var(--success); }
+.match-badge.shortage { background: var(--warn-light); color: var(--warn); }
+
+/* Remove Scene Button */
+.remove-scene-btn {
+  width: 16px; height: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface2); border-radius: 3px;
+  cursor: pointer; font-size: 10px; color: var(--danger);
+  display: flex; align-items: center; justify-content: center;
+}
+.remove-scene-btn:hover { background: var(--danger-light); border-color: var(--danger); }
+
+.package-section {
+  background: linear-gradient(135deg, #fdf4ff, #faf5ff);
+  border: 1px solid #e9d5ff; border-radius: 6px; padding: 10px;
+}
+.package-title { font-size: 10px; font-weight: 700; color: #7c3aed; margin-bottom: 8px; }
+.package-item { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 5px; font-size: 10px; }
+.package-label { color: #9333ea; min-width: 80px; font-weight: 600; }
+.package-value { color: var(--text2); flex: 1; }
+
+/* 画面匹配区域 */
+.visual-match-section {
+  background: linear-gradient(135deg, #ecfdf5, #f0f9ff);
+  border: 1px solid #6ee7b7; border-radius: 6px; overflow: hidden; margin-top: 8px;
+}
+.visual-match-header {
+  background: linear-gradient(135deg, #059669, #0ea5e9);
+  padding: 8px 12px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer;
+}
+.visual-match-header:hover { opacity: 0.9; }
+.visual-match-title {
+  font-size: 11px; font-weight: 700; color: white;
+  flex: 1;
+}
+.visual-match-toggle {
+  font-size: 10px; color: rgba(255,255,255,0.8);
+}
+.visual-match-body {
+  padding: 10px;
+  display: none;
+}
+.visual-match-body.visible { display: block; }
+.visual-match-subsection {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 8px; margin-bottom: 8px;
+}
+.visual-match-subsection:last-child { margin-bottom: 0; }
+.visual-match-label {
+  font-size: 9px; font-weight: 700; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 4px;
+}
+.visual-match-label.must { color: var(--danger); }
+.visual-match-label.maybe { color: var(--success); }
+.visual-text {
+  font-size: 10px; color: var(--text2); line-height: 1.5;
+  padding: 6px 8px; background: var(--surface2); border-radius: 4px;
+  margin-bottom: 6px;
+}
+/* TopN 场景区块 */
+.top-scene-block {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 8px; overflow: hidden;
+}
+.top-scene-block:last-child { margin-bottom: 0; }
+.top-scene-header {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  padding: 6px 10px;
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer;
+}
+.top-scene-header:hover { opacity: 0.9; }
+.top-scene-badge {
+  font-size: 10px; font-weight: 700; color: white;
+  background: rgba(255,255,255,0.2);
+  padding: 2px 8px; border-radius: 10px;
+}
+.top-scene-info {
+  font-size: 10px; color: rgba(255,255,255,0.9); flex: 1;
+}
+.top-scene-toggle {
+  font-size: 10px; color: rgba(255,255,255,0.8);
+}
+.top-scene-body {
+  padding: 8px;
+  display: none;
+}
+.top-scene-body.visible { display: block; }
+.top-scene-meta {
+  font-size: 9px; color: var(--muted); line-height: 1.5;
+  padding: 6px 8px; background: var(--surface); border-radius: 4px;
+  margin-bottom: 8px;
+}
+.top-scene-meta .ts-line {
+  color: var(--text2);
+}
+.top-scene-meta .confidence {
+  color: var(--success); font-weight: 600;
+}
+.top-scene-meta .reason {
+  color: var(--text2);
+}
+.image-grid {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.image-grid img {
+  width: calc(25% - 5px); /* 默认一行4张 */
+  min-width: 80px;
+  max-width: 150px;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.image-grid img:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-color: var(--accent);
+}
+.no-images {
+  font-size: 10px; color: var(--muted); padding: 8px; text-align: center;
+}
+
+/* 图片大图预览 */
+.image-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.image-modal.visible { display: flex; }
+.image-modal img {
+  max-width: 90vw; max-height: 90vh;
+  border-radius: 8px;
+}
+.image-modal-close {
+  position: absolute; top: 20px; right: 20px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); border: none;
+  color: white; font-size: 20px; cursor: pointer;
+}
+.image-modal-close:hover { background: rgba(255,255,255,0.3); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: white;
+  padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 500;
+  z-index: 1001; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.visible { opacity: 1; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px; color: var(--muted); }
+.empty-icon { font-size: 36px; }
+
+/* ── 登录和数据切换按钮 ───────────────────────────────────── */
+.auth-buttons { display: flex; align-items: center; gap: 6px; }
+.auth-btn {
+  height: 28px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text2);
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.auth-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.auth-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.auth-btn.primary:hover { background: var(--accent-dark); }
+.auth-btn.logged-in { background: var(--success-light); color: var(--success); border-color: var(--success); }
+
+/* 数据切换下拉 */
+.dataset-dropdown-wrap { position: relative; }
+.dataset-dropdown-btn {
+  height: 28px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text2);
+  font-size: 11px; cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+}
+.dataset-dropdown-btn:hover { border-color: var(--accent); }
+.dataset-dropdown-btn .current-name { font-weight: 600; color: var(--accent); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.dataset-dropdown-menu {
+  position: absolute; top: 100%; right: 0; margin-top: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 200px; max-height: 300px; overflow-y: auto;
+  display: none; z-index: 200;
+}
+.dataset-dropdown-menu.visible { display: block; }
+.dataset-menu-item {
+  padding: 8px 12px; font-size: 11px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.dataset-menu-item:last-child { border-bottom: none; }
+.dataset-menu-item:hover { background: var(--accent-light); }
+.dataset-menu-item.active { background: var(--accent); color: white; }
+.dataset-menu-item .item-name { font-weight: 500; }
+.dataset-menu-item .item-date { font-size: 9px; color: var(--muted); }
+.dataset-menu-item.active .item-date { color: rgba(255,255,255,0.7); }
+
+/* ── 模态框 ────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: none; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.modal-overlay.visible { display: flex; }
+.modal-box {
+  background: var(--surface); border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  max-width: 500px; width: 90%; max-height: 80vh;
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.modal-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.modal-close {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; font-size: 16px; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+/* 登录表单 */
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 12px; font-weight: 600; color: var(--text2); }
+.form-group input {
+  height: 40px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; outline: none;
+}
+.form-group input:focus { border-color: var(--accent); }
+.login-error { font-size: 12px; color: var(--danger); text-align: center; display: none; }
+.login-error.visible { display: block; }
+
+/* 数据集管理页面 */
+.dataset-manager { }
+.dataset-upload-zone {
+  border: 2px dashed var(--border2); border-radius: 12px;
+  padding: 30px; text-align: center; cursor: pointer;
+  transition: all 0.2s; margin-bottom: 16px;
+}
+.dataset-upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+.dataset-upload-zone input { display: none; }
+.upload-zone-icon { font-size: 32px; margin-bottom: 8px; }
+.upload-zone-text { font-size: 13px; color: var(--text2); }
+.upload-zone-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.dataset-list { display: flex; flex-direction: column; gap: 8px; }
+.dataset-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; background: var(--surface2); border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.dataset-item.active { border-color: var(--accent); background: var(--accent-light); }
+.dataset-item-icon { font-size: 20px; }
+.dataset-item-info { flex: 1; }
+.dataset-item-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.dataset-item-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.dataset-item-name-input {
+  font-size: 12px; font-weight: 600;
+  padding: 4px 8px; border: 1px solid var(--accent);
+  border-radius: 4px; outline: none; width: 100%;
+}
+.dataset-item-actions { display: flex; gap: 6px; }
+.dataset-item-actions button {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.dataset-item-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.dataset-item-actions button.delete:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+.dataset-item-actions button.save { background: var(--accent); color: white; border-color: var(--accent); }
+
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+</div>
+
+<div class="navbar">
+  <div class="brand">📊 视频脚本数据预览 <span class="version-badge">v7.4</span></div>
+  <div class="nav-sep"></div>
+  <div class="nav-right">
+    <!-- 数据集切换 -->
+    <div class="dataset-dropdown-wrap" id="datasetDropdownWrap">
+      <button class="dataset-dropdown-btn" id="datasetDropdownBtn">
+        <span>📁</span>
+        <span class="current-name" id="currentDatasetName">加载数据...</span>
+        <span>▼</span>
+      </button>
+      <div class="dataset-dropdown-menu" id="datasetDropdownMenu"></div>
+    </div>
+    <div class="nav-sep"></div>
+
+    <!-- 登录按钮 -->
+    <div class="auth-buttons" id="authButtons">
+      <button class="auth-btn" id="btnLogin">🔐 登录</button>
+    </div>
+    <div class="nav-sep"></div>
+
+    <div class="id-search-container">
+      <input type="text" class="id-search-input" id="idSearchInput" placeholder="搜索或输入ID...">
+      <div class="id-dropdown" id="idDropdown"></div>
+    </div>
+    <button class="btn" id="btnIdGo">定位</button>
+    <div class="nav-sep"></div>
+    <div class="case-counter"><span id="caseNum">—</span><span class="total">/ <span id="caseTotal">0</span></span></div>
+    <button class="btn" id="btnPrev" disabled>◀</button>
+    <button class="btn" id="btnNext" disabled>▶</button>
+    <div class="jump-wrap">
+      <input type="number" class="jump-input" id="jumpInput" placeholder="#" min="1">
+      <button class="btn" id="btnJump">跳转</button>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="ratio-badge" id="ratioBadge">比例 6:4</div>
+    <button class="btn" id="btnResetRatio">重置比例</button>
+    <button class="btn" id="btnReload" style="display:none">↺ 重新加载</button>
+  </div>
+</div>
+
+<div class="workspace">
+  <div class="upload-screen" id="uploadScreen">
+    <div class="upload-card" id="uploadCard">
+      <input type="file" id="xlsxInput" accept=".xlsx,.xls,.jsonl">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">加载数据文件</div>
+      <div class="upload-desc">点击或拖拽上传 · 支持 Excel 或 JSONL 格式<br><small style="color:var(--muted)">${isLoggedIn ? '登录后可管理数据集' : '登录后可使用数据集管理功能'}</small></div>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+  </div>
+
+  <div class="case-layout" id="caseLayout">
+    <div class="hints-bar">
+      <div class="hint-item"><kbd>←</kbd><kbd>→</kbd> 切换</div>
+      <div class="hint-item">拖拽中间分隔条调整比例</div>
+    </div>
+    <div class="info-bar">
+      <div class="case-id-badge" id="infoCaseId">Case #1</div>
+      <div class="title-text" id="infoTitle">—</div>
+    </div>
+
+    <div class="two-cols" id="twoCols">
+      <div class="col col-left" id="col1">
+        <div class="col-header purple">📽 原视频</div>
+        <div class="video-wrap"><video id="videoPlayer" controls preload="metadata"></video></div>
+        <div class="meta-box">
+          <div class="meta-box-title">📋 基础信息</div>
+          <div class="meta-row"><span class="meta-label">ID:</span><span class="meta-value mono" id="metaId">—</span></div>
+          <div class="meta-row"><span class="meta-label">视频链接:</span><span class="meta-value mono" id="metaUrl" style="word-break:break-all;font-size:9px;">—</span></div>
+        </div>
+        
+        <!-- 模型回复预览（带Tab切换的暗色面板） -->
+        <div class="model-preview-section" id="modelPreviewSection" style="display:none;">
+          <div class="model-preview-tabs">
+            <button class="model-preview-tab active" onclick="switchModelTab('voiceover')">文案预览</button>
+            <button class="model-preview-tab" onclick="switchModelTab('full')">完整脚本</button>
+          </div>
+          <div class="model-preview-body">
+            <div class="model-preview-panel active" id="voiceoverPanel"></div>
+            <div class="model-preview-panel" id="fullScriptPanel"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer" id="resizer"></div>
+
+      <div class="col col-right" id="col2">
+        <div class="col-header green">📜 模型输出</div>
+        <div id="scriptContainer"><div class="empty-state"><div class="empty-icon">📭</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已保存</div>
+
+<div class="image-modal" id="imageModal">
+  <button class="image-modal-close" id="imageModalClose">✕</button>
+  <img id="imageModalImg" src="" alt="预览图">
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// 全局状态
+// ═══════════════════════════════════════════════════════════
+let rows = [];
+let currentIdx = 0;
+let allIds = []; // 所有ID列表，用于搜索
+
+// 列比例 (默认 6:4)
+let leftRatio = 6;
+let rightRatio = 4;
+
+// ═══════════════════════════════════════════════════════════
+// 登录和数据集管理
+// ═══════════════════════════════════════════════════════════
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'bonmm';
+let isLoggedIn = false;
+let currentUser = null;
+
+// 默认数据集信息
+const DEFAULT_DATASET = {
+  id: 'default',
+  name: '样例数据集 v2',
+  url: 'data/sampled_10_with_matches_v2.xlsx', // 相对路径，实际部署时需要配置
+  uploadTime: new Date().toISOString(),
+  isDefault: true
+};
+
+// 数据集列表（从 localStorage 加载或使用默认）
+let datasets = JSON.parse(localStorage.getItem('script_datasets') || JSON.stringify([DEFAULT_DATASET]));
+let currentDatasetId = localStorage.getItem('current_dataset_id') || DEFAULT_DATASET.id;
+
+// ═══════════════════════════════════════════════════════════
+// 登录和数据集管理功能
+// ═══════════════════════════════════════════════════════════
+
+// 初始化登录状态
+function initAuth() {
+  const savedLogin = localStorage.getItem('isLoggedIn');
+  if (savedLogin === 'true') {
+    isLoggedIn = true;
+    updateLoginButton();
+  }
+}
+
+// 更新登录按钮状态
+function updateLoginButton() {
+  const btn = document.getElementById('btnLogin');
+  if (isLoggedIn) {
+    btn.innerHTML = '👤 已登录';
+    btn.classList.add('logged-in');
+    btn.onclick = showDatasetManager;
+  } else {
+    btn.innerHTML = '🔐 登录';
+    btn.classList.remove('logged-in');
+    btn.onclick = showLoginModal;
+  }
+}
+
+// 显示登录模态框
+function showLoginModal() {
+  document.getElementById('loginModal').classList.add('visible');
+  document.getElementById('loginUsername').focus();
+}
+
+// 隐藏登录模态框
+function hideLoginModal() {
+  document.getElementById('loginModal').classList.remove('visible');
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginError').classList.remove('visible');
+}
+
+// 处理登录
+function handleLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value;
+  const password = document.getElementById('loginPassword').value;
+
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    isLoggedIn = true;
+    localStorage.setItem('isLoggedIn', 'true');
+    hideLoginModal();
+    updateLoginButton();
+    showToast('登录成功');
+    showDatasetManager();
+  } else {
+    document.getElementById('loginError').classList.add('visible');
+  }
+}
+
+// 显示数据集管理模态框
+function showDatasetManager() {
+  if (!isLoggedIn) {
+    showLoginModal();
+    return;
+  }
+  document.getElementById('datasetManagerModal').classList.add('visible');
+  renderDatasetList();
+}
+
+// 隐藏数据集管理模态框
+function hideDatasetManager() {
+  document.getElementById('datasetManagerModal').classList.remove('visible');
+}
+
+// 渲染数据集列表
+function renderDatasetList() {
+  const container = document.getElementById('datasetList');
+  container.innerHTML = datasets.map((ds, idx) => `
+    <div class="dataset-item ${ds.id === currentDatasetId ? 'active' : ''}" data-id="${ds.id}">
+      <span class="dataset-item-icon">${ds.isDefault ? '📌' : '📊'}</span>
+      <div class="dataset-item-info">
+        <div class="dataset-item-name">${esc(ds.name)}</div>
+        <div class="dataset-item-meta">${ds.isDefault ? '内置数据集' : '上传于 ' + formatDate(ds.uploadTime)} · ${ds.rowCount || '?'} 条数据</div>
+      </div>
+      <div class="dataset-item-actions">
+        ${!ds.isDefault ? `<button class="rename" onclick="startRenameDataset('${ds.id}')" title="重命名">✏️</button>
+        <button class="delete" onclick="deleteDataset('${ds.id}')" title="删除">🗑️</button>` : ''}
+        <button class="activate" onclick="switchDataset('${ds.id}')" title="切换到此数据集">${ds.id === currentDatasetId ? '✓' : '切换'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 格式化日期
+function formatDate(isoStr) {
+  const d = new Date(isoStr);
+  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// 开始重命名数据集
+function startRenameDataset(id) {
+  const ds = datasets.find(d => d.id === id);
+  if (!ds) return;
+
+  const container = document.getElementById('datasetList');
+  const item = container.querySelector(`[data-id="${id}"]`);
+  const nameEl = item.querySelector('.dataset-item-name');
+
+  nameEl.outerHTML = `<input type="text" class="dataset-item-name-input" value="${esc(ds.name)}" onblur="finishRename('${id}', this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
+  item.querySelector('.dataset-item-name-input').select();
+}
+
+// 完成重命名
+function finishRename(id, newName) {
+  newName = newName.trim();
+  if (!newName) return;
+
+  const ds = datasets.find(d => d.id === id);
+  if (ds) {
+    ds.name = newName;
+    saveDatasets();
+    renderDatasetList();
+    updateDatasetDropdown();
+    showToast('已重命名');
+  }
+}
+
+// 删除数据集
+function deleteDataset(id) {
+  if (id === DEFAULT_DATASET.id) {
+    showToast('无法删除默认数据集');
+    return;
+  }
+
+  if (!confirm('确定要删除此数据集吗？')) return;
+
+  // 从列表中移除
+  datasets = datasets.filter(d => d.id !== id);
+
+  // 如果删除的是当前数据集，切换到默认
+  if (currentDatasetId === id) {
+    currentDatasetId = DEFAULT_DATASET.id;
+  }
+
+  saveDatasets();
+  renderDatasetList();
+  updateDatasetDropdown();
+  showToast('已删除');
+}
+
+// 保存数据集列表
+function saveDatasets() {
+  localStorage.setItem('script_datasets', JSON.stringify(datasets));
+  localStorage.setItem('current_dataset_id', currentDatasetId);
+}
+
+// 上传新数据集
+function handleDatasetUpload(file) {
+  if (!isLoggedIn) {
+    showToast('请先登录');
+    return;
+  }
+
+  const reader = new FileReader();
+
+  if (file.name.endsWith('.jsonl')) {
+    reader.onload = async (e) => {
+      try {
+        const text = e.target.result;
+        const lines = text.trim().split('\n').filter(l => l.trim());
+        const data = lines.map(line => JSON.parse(line));
+
+        const newDataset = {
+          id: 'ds_' + Date.now(),
+          name: file.name.replace(/\.[^.]+$/, ''),
+          data: data,
+          uploadTime: new Date().toISOString(),
+          rowCount: data.length
+        };
+
+        datasets.push(newDataset);
+        saveDatasets();
+        renderDatasetList();
+        updateDatasetDropdown();
+        showToast(`已上传 ${data.length} 条数据`);
+      } catch (err) {
+        showToast('解析失败: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  } else {
+    reader.onload = async (e) => {
+      try {
+        const workbook = XLSX.read(e.target.result, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet);
+
+        const newDataset = {
+          id: 'ds_' + Date.now(),
+          name: file.name.replace(/\.[^.]+$/, ''),
+          data: data,
+          uploadTime: new Date().toISOString(),
+          rowCount: data.length
+        };
+
+        datasets.push(newDataset);
+        saveDatasets();
+        renderDatasetList();
+        updateDatasetDropdown();
+        showToast(`已上传 ${data.length} 条数据`);
+      } catch (err) {
+        showToast('解析失败: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+// 更新数据集下拉菜单
+function updateDatasetDropdown() {
+  const menu = document.getElementById('datasetDropdownMenu');
+  const currentName = document.getElementById('currentDatasetName');
+
+  const currentDs = datasets.find(d => d.id === currentDatasetId);
+  currentName.textContent = currentDs ? currentDs.name : '选择数据集';
+
+  menu.innerHTML = datasets.map(ds => `
+    <div class="dataset-menu-item ${ds.id === currentDatasetId ? 'active' : ''}" onclick="switchDataset('${ds.id}')">
+      <span class="item-name">${esc(ds.name)}</span>
+      <span class="item-date">${ds.rowCount || '?'}条</span>
+    </div>
+  `).join('');
+}
+
+// 切换数据集
+function switchDataset(id) {
+  const ds = datasets.find(d => d.id === id);
+  if (!ds) return;
+
+  currentDatasetId = id;
+  localStorage.setItem('current_dataset_id', id);
+
+  updateDatasetDropdown();
+
+  // 隐藏下拉菜单
+  document.getElementById('datasetDropdownMenu').classList.remove('visible');
+
+  // 加载数据
+  loadDatasetData(ds);
+}
+
+// 加载数据集数据
+function loadDatasetData(ds) {
+  document.getElementById('loadingOverlay').classList.add('visible');
+
+  // 如果数据已在本地存储中
+  if (ds.data) {
+    processLoadedData(ds.data, ds.name);
+    return;
+  }
+
+  // 如果是默认数据集，需要从服务器加载
+  if (ds.isDefault) {
+    loadDefaultDataset();
+    return;
+  }
+
+  // 否则显示上传界面
+  document.getElementById('loadingOverlay').classList.remove('visible');
+  showToast('数据集数据丢失，请重新上传');
+}
+
+// 处理加载的数据
+function processLoadedData(data, name) {
+  rows = data.map((row, idx) => {
+    const rawJson = row['total_json'] || row['模型回复'] || '';
+    let step4Fixed = null;
+    if (rawJson) {
+      try {
+        step4Fixed = parseModelOutput(rawJson);
+      } catch (e) {
+        step4Fixed = null;
+      }
+    }
+
+    const rowData = {
+      id: String(row['data_id'] || row['ID'] || idx + 1),
+      videoUrl: row['video_url'] || row['视频链接'] || '',
+      modelOutput: rawJson,
+      step4Fixed: step4Fixed,
+      visualMatches: {}
+    };
+
+    // 解析 p1 到 p9 的画面匹配字段
+    for (let i = 1; i <= 9; i++) {
+      const prefix = `p${i}_`;
+      const mustVisual = row[`${prefix}must_visual`] || '';
+      const mustVTs = row[`${prefix}must_v_ts`] || '';
+      const maybeVisual = row[`${prefix}maybe_visual`] || '';
+      const maybeVTs = row[`${prefix}maybe_v_ts`] || '';
+
+      if (mustVisual || mustVTs || maybeVisual || maybeVTs) {
+        rowData.visualMatches[i] = { mustVisual, mustVTs, maybeVisual, maybeVTs };
+      }
+    }
+
+    return rowData;
+  });
+
+  allIds = rows.map(r => r.id);
+
+  document.getElementById('loadingOverlay').classList.remove('visible');
+  document.getElementById('uploadStatus').innerHTML = `✓ 已加载 <b>${rows.length}</b> 条数据 - ${esc(name)}`;
+
+  initTool();
+}
+
+// ═══════════════════════════════════════════════════════════
+// 拖拽调整比例
+// ═══════════════════════════════════════════════════════════
+const resizer = document.getElementById('resizer');
+const twoCols = document.getElementById('twoCols');
+const col1 = document.getElementById('col1');
+const col2 = document.getElementById('col2');
+
+let isResizing = false;
+
+resizer.addEventListener('mousedown', (e) => {
+  isResizing = true;
+  resizer.classList.add('active');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  
+  const containerRect = twoCols.getBoundingClientRect();
+  const containerWidth = containerRect.width - 6; // 减去 resizer 宽度
+  const mouseX = e.clientX - containerRect.left;
+  
+  // 计算左侧宽度比例 (限制在 20% - 80%)
+  let leftPercent = (mouseX / containerRect.width) * 100;
+  leftPercent = Math.max(20, Math.min(80, leftPercent));
+  
+  // 更新 flex 值
+  const leftFlex = leftPercent;
+  const rightFlex = 100 - leftPercent;
+  
+  col1.style.flex = leftFlex;
+  col2.style.flex = rightFlex;
+  
+  // 更新比例显示 (转换为简化比例)
+  updateRatioBadge(leftFlex, rightFlex);
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    resizer.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+
+function updateRatioBadge(left, right) {
+  // 转换为简化比例 (约到整数)
+  const total = left + right;
+  const l = Math.round(left / total * 10);
+  const r = 10 - l;
+  document.getElementById('ratioBadge').textContent = `比例 ${l}:${r}`;
+  leftRatio = l;
+  rightRatio = r;
+}
+
+document.getElementById('btnResetRatio').addEventListener('click', () => {
+  col1.style.flex = 6;
+  col2.style.flex = 4;
+  leftRatio = 6;
+  rightRatio = 4;
+  document.getElementById('ratioBadge').textContent = '比例 6:4';
+  showToast('已重置为 6:4');
+});
+
+// ═══════════════════════════════════════════════════════════
+// ID 搜索功能
+// ═══════════════════════════════════════════════════════════
+const idSearchInput = document.getElementById('idSearchInput');
+const idDropdown = document.getElementById('idDropdown');
+
+idSearchInput.addEventListener('focus', () => {
+  if (allIds.length > 0) {
+    renderIdDropdown(allIds.slice(0, 20));
+    idDropdown.classList.add('visible');
+  }
+});
+
+idSearchInput.addEventListener('input', () => {
+  const query = idSearchInput.value.trim().toLowerCase();
+  if (!query) {
+    renderIdDropdown(allIds.slice(0, 20));
+  } else {
+    const filtered = allIds.filter(id => id.toLowerCase().includes(query)).slice(0, 20);
+    renderIdDropdown(filtered);
+  }
+  idDropdown.classList.add('visible');
+});
+
+idSearchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('btnIdGo').click();
+  }
+});
+
+function renderIdDropdown(ids) {
+  if (!ids.length) {
+    idDropdown.innerHTML = '<div class="id-dropdown-item" style="color:var(--muted)">无匹配</div>';
+    return;
+  }
+  idDropdown.innerHTML = ids.map(id => 
+    `<div class="id-dropdown-item" data-id="${esc(id)}">${esc(id)}</div>`
+  ).join('');
+}
+
+idDropdown.addEventListener('click', (e) => {
+  const item = e.target.closest('.id-dropdown-item');
+  if (item && item.dataset.id) {
+    idSearchInput.value = item.dataset.id;
+    idDropdown.classList.remove('visible');
+    goToId(item.dataset.id);
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.id-search-container')) {
+    idDropdown.classList.remove('visible');
+  }
+});
+
+document.getElementById('btnIdGo').addEventListener('click', () => {
+  const id = idSearchInput.value.trim();
+  if (id) goToId(id);
+});
+
+function goToId(targetId) {
+  const idx = rows.findIndex(r => r.id === targetId || r.id === String(targetId));
+  if (idx >= 0) {
+    renderCase(idx);
+    showToast(`已定位到 ID: ${targetId}`);
+  } else {
+    showToast(`未找到 ID: ${targetId}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 图片大图预览
+// ═══════════════════════════════════════════════════════════
+const imageModal = document.getElementById('imageModal');
+const imageModalImg = document.getElementById('imageModalImg');
+
+document.getElementById('imageModalClose').addEventListener('click', () => {
+  imageModal.classList.remove('visible');
+});
+
+imageModal.addEventListener('click', (e) => {
+  if (e.target === imageModal) {
+    imageModal.classList.remove('visible');
+  }
+});
+
+function showImagePreview(src) {
+  imageModalImg.src = src;
+  imageModal.classList.add('visible');
+}
+
+// ═══════════════════════════════════════════════════════════
+// 文件加载（支持数据集模式和手动上传）
+// ═══════════════════════════════════════════════════════════
+const xlsxInput = document.getElementById('xlsxInput');
+
+// 手动上传文件（未登录用户）
+xlsxInput.addEventListener('change', e => {
+  if (e.target.files[0]) {
+    const file = e.target.files[0];
+    if (isLoggedIn) {
+      // 已登录用户上传到数据集
+      handleDatasetUpload(file);
+    } else {
+      // 未登录用户直接加载数据
+      loadFile(file);
+    }
+  }
+});
+
+document.getElementById('uploadCard').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('uploadCard').addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) {
+    const file = e.dataTransfer.files[0];
+    if (isLoggedIn) {
+      handleDatasetUpload(file);
+    } else {
+      loadFile(file);
+    }
+  }
+});
+
+document.getElementById('btnReload').addEventListener('click', () => {
+  rows = [];
+  document.getElementById('caseLayout').classList.remove('visible');
+  document.getElementById('uploadScreen').style.display = 'flex';
+  document.getElementById('uploadStatus').textContent = '';
+  document.getElementById('btnReload').style.display = 'none';
+  xlsxInput.value = '';
+});
+
+async function loadFile(file) {
+  document.getElementById('loadingOverlay').classList.add('visible');
+  
+  try {
+    const fileName = file.name.toLowerCase();
+    
+    // 判断文件类型
+    if (fileName.endsWith('.jsonl')) {
+      await loadJsonlFile(file);
+    } else {
+      await loadExcelFile(file);
+    }
+    
+  } catch (err) {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('解析失败: ' + err.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 渲染案例
+// ═══════════════════════════════════════════════════════════
+function renderCase(idx) {
+  if (idx < 0 || idx >= rows.length) return;
+  currentIdx = idx;
+  const d = rows[idx];
+
+  document.getElementById('infoCaseId').textContent = `Case #${d.id}`;
+  document.getElementById('caseNum').textContent = idx + 1;
+  document.getElementById('infoTitle').textContent = `ID: ${d.id}`;
+  document.getElementById('metaId').textContent = d.id;
+  document.getElementById('metaUrl').textContent = d.videoUrl || '—';
+  document.getElementById('btnPrev').disabled = idx === 0;
+  document.getElementById('btnNext').disabled = idx === rows.length - 1;
+
+  const videoEl = document.getElementById('videoPlayer');
+  if (d.videoUrl) { videoEl.src = d.videoUrl; videoEl.load(); } else { videoEl.src = ''; }
+  
+  renderScriptOutput(d.modelOutput, d.visualMatches);
+  
+  // 渲染模型预览（文案预览 + 完整脚本 Tab面板）
+  renderModelPreview(d.step4Fixed);
+
+  ['col1','col2'].forEach(id => document.getElementById(id).scrollTop = 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 模型预览渲染（Tab面板：文案预览 + 完整脚本）
+// ═══════════════════════════════════════════════════════════
+function renderModelPreview(step4Fixed) {
+  const section = document.getElementById('modelPreviewSection');
+  const voiceoverPanel = document.getElementById('voiceoverPanel');
+  const fullScriptPanel = document.getElementById('fullScriptPanel');
+  
+  if (!step4Fixed || !step4Fixed['内容结构']) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  const structure = step4Fixed['内容结构'];
+  
+  // ========== 文案预览面板 ==========
+  let voiceoverHtml = '';
+  let totalChars = 0;
+  let actCount = 0;
+  
+  Object.keys(structure).forEach((actKey, idx) => {
+    const act = structure[actKey];
+    if (!act || typeof act !== 'object') return;
+    
+    const voiceoverText = act['画外音文案'];
+    const timeline = act['脚本时间轴'] || '';
+    
+    if (voiceoverText) {
+      const chars = countChineseChars(voiceoverText);
+      totalChars += chars;
+      actCount++;
+      
+      voiceoverHtml += `<div class="voiceover-preview-item">
+        <div class="voiceover-preview-header">
+          <span class="voiceover-time-badge">${esc(timeline)}</span>
+          <span class="voiceover-act-name">${esc(actKey)}</span>
+        </div>
+        <div class="voiceover-preview-text">${esc(voiceoverText)}</div>
+      </div>`;
+    }
+  });
+  
+  // 统计信息
+  const estimatedDuration = Math.round(totalChars / 3);
+  const minutes = Math.floor(estimatedDuration / 60);
+  const seconds = estimatedDuration % 60;
+  voiceoverHtml += `<div class="voiceover-stats">
+    共 <b>${actCount}</b> 幕 · 总字数 <b>${totalChars}</b> 字 · 预估时长 <b>${minutes}分${seconds}秒</b>
+  </div>`;
+  
+  voiceoverPanel.innerHTML = voiceoverHtml;
+  
+  // ========== 完整脚本面板 ==========
+  let fullHtml = '';
+  
+  // 整体信息
+  if (step4Fixed['整体时长']) {
+    fullHtml += `<div class="full-script-section">
+      <div class="full-script-title">⏱ 整体时长</div>
+      <div class="full-script-field"><span class="full-script-val">${esc(step4Fixed['整体时长'])}</span></div>
+    </div>`;
+  }
+  if (step4Fixed['解说人设']) {
+    fullHtml += `<div class="full-script-section">
+      <div class="full-script-title">🎙 解说人设</div>
+      <div class="full-script-field"><span class="full-script-val">${esc(step4Fixed['解说人设'])}</span></div>
+    </div>`;
+  }
+  
+  // 内容结构
+  fullHtml += `<div class="full-script-section"><div class="full-script-title">📚 内容结构</div>`;
+  Object.keys(structure).forEach((actKey, idx) => {
+    const act = structure[actKey];
+    if (!act || typeof act !== 'object') return;
+    
+    fullHtml += `<div class="full-script-act">
+      <div class="full-script-act-title">${idx + 1}. ${esc(actKey)}</div>`;
+    
+    const fieldOrder = ['脚本时间轴', '战术意图', 'Must画面建议', 'Maybe画面建议', '画外音文案', '音效建议', '音画配合模式'];
+    fieldOrder.forEach(key => {
+      if (act[key]) {
+        fullHtml += `<div class="full-script-field">
+          <span class="full-script-key">${esc(key)}:</span>
+          <span class="full-script-val">${esc(act[key])}</span>
+        </div>`;
+      }
+    });
+    fullHtml += `</div>`;
+  });
+  fullHtml += `</div>`;
+  
+  // 视频包装规范
+  const pkg = step4Fixed['视频包装规范'];
+  if (pkg && typeof pkg === 'object') {
+    fullHtml += `<div class="full-script-section"><div class="full-script-title">🎨 视频包装规范</div>`;
+    Object.keys(pkg).forEach(key => {
+      if (pkg[key]) {
+        fullHtml += `<div class="full-script-field">
+          <span class="full-script-key">${esc(key)}:</span>
+          <span class="full-script-val">${esc(pkg[key])}</span>
+        </div>`;
+      }
+    });
+    fullHtml += `</div>`;
+  }
+  
+  fullScriptPanel.innerHTML = fullHtml;
+}
+
+// Tab 切换功能
+function switchModelTab(tabName) {
+  const tabs = document.querySelectorAll('.model-preview-tab');
+  const panels = document.querySelectorAll('.model-preview-panel');
+  
+  tabs.forEach(tab => tab.classList.remove('active'));
+  panels.forEach(panel => panel.classList.remove('active'));
+  
+  if (tabName === 'voiceover') {
+    tabs[0].classList.add('active');
+    document.getElementById('voiceoverPanel').classList.add('active');
+  } else {
+    tabs[1].classList.add('active');
+    document.getElementById('fullScriptPanel').classList.add('active');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 画面匹配区域渲染
+// ═══════════════════════════════════════════════════════════
+function renderVisualMatchSection(matchData, actIndex) {
+  const { mustVisual, mustVTs, maybeVisual, maybeVTs } = matchData;
+  
+  // 检查是否有任何有效数据
+  if (!mustVisual && !mustVTs && !maybeVisual && !maybeVTs) {
+    return '';
+  }
+  
+  let html = `<div class="visual-match-section">
+    <div class="visual-match-header" onclick="toggleVisualMatch(this)">
+      <span class="visual-match-title">🎯 第${actIndex}幕 - 画面匹配素材</span>
+      <span class="visual-match-toggle">▼</span>
+    </div>
+    <div class="visual-match-body visible">`;
+  
+  // Must 画面
+  if (mustVisual || mustVTs) {
+    html += `<div class="visual-match-subsection">
+      <div class="visual-match-label must">🔴 Must 画面素材</div>`;
+    
+    // 渲染 visual 和 ts 的组合
+    html += renderVisualWithTs(mustVisual, mustVTs);
+    
+    html += `</div>`;
+  }
+  
+  // Maybe 画面
+  if (maybeVisual || maybeVTs) {
+    html += `<div class="visual-match-subsection">
+      <div class="visual-match-label maybe">🟢 Maybe 画面素材</div>`;
+    
+    // 渲染 visual 和 ts 的组合
+    html += renderVisualWithTs(maybeVisual, maybeVTs);
+    
+    html += `</div>`;
+  }
+  
+  html += `</div></div>`;
+  return html;
+}
+
+// 渲染 visual + ts 组合（按时间区间分组）
+function renderVisualWithTs(visualText, tsText) {
+  let html = '';
+  
+  // 从 visual 中提取时间区间和描述
+  const visualRanges = parseVisualRanges(visualText);
+  
+  // 从 ts 中提取时间范围分组
+  const { timeRangeGroups } = parseVisualTsField(tsText);
+  
+  // 如果没有数据，直接显示原始文本
+  if (visualRanges.length === 0 && timeRangeGroups.length === 0) {
+    if (visualText) {
+      html += `<div class="visual-text">${formatTimestampsClickable(visualText)}</div>`;
+    }
+    return html;
+  }
+  
+  // 按时间区间组织显示
+  // 遍历 visual 中的每个时间区间
+  visualRanges.forEach((vr, idx) => {
+    html += `<div class="time-range-group" style="margin-bottom:12px; padding:10px; background:var(--surface2); border-radius:6px; border-left:3px solid var(--info);">`;
+    
+    // 显示时间区间标题
+    html += `<div class="time-range-header" style="font-size:10px; font-weight:700; color:var(--info); margin-bottom:6px;">
+      📍 时间区间 ${idx + 1}: <span class="timestamp-tag" onclick="seekTo('${vr.start}')">${vr.start}</span> - <span class="timestamp-tag" onclick="seekTo('${vr.end}')">${vr.end}</span>
+    </div>`;
+    
+    // 显示画面描述
+    if (vr.description) {
+      html += `<div class="visual-text" style="margin-bottom:8px;">${esc(vr.description)}</div>`;
+    }
+    
+    // 查找对应的 ts 时间范围组
+    const matchingTsGroup = timeRangeGroups.find(tg => 
+      tg.start === vr.start && tg.end === vr.end
+    );
+    
+    if (matchingTsGroup && matchingTsGroup.topBlocks.length > 0) {
+      // 显示画面建议
+      if (matchingTsGroup.suggestion) {
+        html += `<div style="font-size:9px; color:var(--muted); margin-bottom:6px;">💡 画面建议: ${esc(matchingTsGroup.suggestion)}</div>`;
+      }
+      
+      // 显示 Top 场景
+      matchingTsGroup.topBlocks.forEach(block => {
+        html += renderTopSceneBlock(block);
+      });
+    }
+    
+    html += `</div>`;
+  });
+  
+  // 处理 ts 中有但 visual 中没有的时间范围（如果有的话）
+  timeRangeGroups.forEach(tg => {
+    const hasMatch = visualRanges.some(vr => vr.start === tg.start && vr.end === tg.end);
+    if (!hasMatch && tg.topBlocks.length > 0) {
+      html += `<div class="time-range-group" style="margin-bottom:12px; padding:10px; background:var(--surface2); border-radius:6px; border-left:3px solid var(--warn);">`;
+      html += `<div class="time-range-header" style="font-size:10px; font-weight:700; color:var(--warn); margin-bottom:6px;">
+        📍 时间范围: <span class="timestamp-tag" onclick="seekTo('${tg.start}')">${tg.start}</span> - <span class="timestamp-tag" onclick="seekTo('${tg.end}')">${tg.end}</span>
+      </div>`;
+      if (tg.suggestion) {
+        html += `<div style="font-size:9px; color:var(--muted); margin-bottom:6px;">💡 画面建议: ${esc(tg.suggestion)}</div>`;
+      }
+      tg.topBlocks.forEach(block => {
+        html += renderTopSceneBlock(block);
+      });
+      html += `</div>`;
+    }
+  });
+  
+  return html;
+}
+
+// 从 visual 文本中提取时间区间和描述
+function parseVisualRanges(visualText) {
+  if (!visualText) return [];
+  
+  const ranges = [];
+  // 匹配 [HH:MM:SS - HH:MM:SS] 描述文字
+  const regex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([^\[]*)/g;
+  let match;
+  
+  while ((match = regex.exec(visualText)) !== null) {
+    ranges.push({
+      start: match[1],
+      end: match[2],
+      description: match[3].trim()
+    });
+  }
+  
+  return ranges;
+}
+
+// 切换画面匹配区域的展开/收起
+function toggleVisualMatch(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.visual-match-toggle');
+  body.classList.toggle('visible');
+  toggle.textContent = body.classList.contains('visible') ? '▼' : '▶';
+}
+
+// 切换 TopN 场景的展开/收起
+function toggleTopScene(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.top-scene-toggle');
+  body.classList.toggle('visible');
+  toggle.textContent = body.classList.contains('visible') ? '▼' : '▶';
+}
+
+// 添加场景时间输入框
+function addSceneInput(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'scene-input';
+  input.placeholder = '如 00:10-00:25';
+  container.appendChild(input);
+}
+
+// 解析时间范围字符串，返回秒数
+function parseTimeRange(str) {
+  if (!str || !str.trim()) return 0;
+  // 支持格式: 00:10-00:25 或 00:10:00-00:25:30 或 1:30-2:00
+  const match = str.trim().match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*-\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return 0;
+  const startSec = parseInt(match[1])*60 + parseInt(match[2]) + (match[3] ? parseInt(match[3]) : 0);
+  const endSec = parseInt(match[4])*60 + parseInt(match[5]) + (match[6] ? parseInt(match[6]) : 0);
+  return Math.max(0, endSec - startSec);
+}
+
+// 从输入组获取总时长
+function getSceneInputsDuration(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return 0;
+  const inputs = container.querySelectorAll('.scene-input');
+  let total = 0;
+  inputs.forEach(input => {
+    total += parseTimeRange(input.value);
+  });
+  return total;
+}
+
+// 重新计算时长
+function recalculateDuration(analysisId) {
+  const container = document.getElementById(analysisId);
+  if (!container) return;
+
+  // 获取脚本时长（恒定）
+  const scriptDuration = parseInt(container.dataset.scriptDuration) || 0;
+
+  // 获取用户输入的语速
+  const speedInput = document.getElementById(`${analysisId}_speed`);
+  const speed = parseInt(speedInput.value) || 200;
+
+  // 获取当前模式
+  const mode = container.dataset.mode || 'voiceover';
+
+  // 计算理想字数
+  const baseChars = Math.round(scriptDuration * speed / 60);
+  let idealChars, minChars, maxChars;
+  if (mode === 'voiceover') {
+    idealChars = baseChars;
+    minChars = Math.round(baseChars * 0.9);
+    maxChars = Math.round(baseChars * 1.1);
+  } else {
+    idealChars = Math.round(baseChars * 0.8);
+    minChars = Math.round(baseChars * 0.72);
+    maxChars = Math.round(baseChars * 0.88);
+  }
+
+  // 更新理想字数区间显示
+  const charRangeEl = document.getElementById(`${analysisId}_charRange`);
+  if (charRangeEl) {
+    charRangeEl.innerHTML = `<b>${idealChars}</b> <span class="min-max">(${minChars}-${maxChars})</span>`;
+  }
+
+  // 获取用户输入的画面时长
+  const mustDuration = getSceneInputsDuration(`${analysisId}_must_inputs`);
+  const maybeDuration = getSceneInputsDuration(`${analysisId}_maybe_inputs`);
+  const totalDuration = mustDuration + maybeDuration;
+
+  // 格式化函数
+  const formatSec = (s) => {
+    if (s < 60) return `${s}秒`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return sec > 0 ? `${m}分${sec}秒` : `${m}分`;
+  };
+
+  // 更新画面时长显示
+  document.getElementById(`${analysisId}_scene`).textContent = formatSec(totalDuration);
+  document.getElementById(`${analysisId}_mustDur`).textContent = formatSec(mustDuration);
+  document.getElementById(`${analysisId}_maybeDur`).textContent = formatSec(maybeDuration);
+
+  // 更新画面匹配显示
+  const picMatchEl = document.getElementById(`${analysisId}_pic_match`);
+  if (picMatchEl) {
+    if (totalDuration >= scriptDuration) {
+      picMatchEl.className = 'match-badge available';
+      picMatchEl.textContent = '✅ 画面匹配';
+    } else {
+      const shortage = scriptDuration - totalDuration;
+      picMatchEl.className = 'match-badge shortage';
+      picMatchEl.textContent = `⚠️ 缺${shortage}秒`;
+    }
+  }
+
+  showToast(`已计算: 理想字数${idealChars}字 (${minChars}-${maxChars}), 画面${formatSec(totalDuration)}`);
+}
+
+// 解析 _v_ts 字段，按"时间范围"分组提取
+function parseVisualTsField(tsContent) {
+  if (!tsContent) return { timeRangeGroups: [] };
+  
+  const content = String(tsContent);
+  
+  // 找出所有"时间范围:"的位置
+  const timeRangeRegex = /时间范围:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)/g;
+  let trMatch;
+  const timeRangePositions = [];
+  
+  while ((trMatch = timeRangeRegex.exec(content)) !== null) {
+    timeRangePositions.push({
+      index: trMatch.index,
+      start: trMatch[1],
+      end: trMatch[2],
+      timeRange: `${trMatch[1]} - ${trMatch[2]}`
+    });
+  }
+  
+  // 如果没有时间范围，返回空
+  if (timeRangePositions.length === 0) {
+    return { timeRangeGroups: [] };
+  }
+  
+  // 找出所有 TopN 的位置
+  const topRegex = /Top(\d+):\s*场景\s*([^\n]+)/g;
+  let topMatch;
+  const topPositions = [];
+  
+  while ((topMatch = topRegex.exec(content)) !== null) {
+    topPositions.push({
+      index: topMatch.index,
+      num: topMatch[1],
+      sceneInfo: topMatch[2].trim()
+    });
+  }
+  
+  // 按时间范围分组
+  const timeRangeGroups = [];
+  
+  for (let i = 0; i < timeRangePositions.length; i++) {
+    const tr = timeRangePositions[i];
+    const nextTrIndex = (i < timeRangePositions.length - 1) ? timeRangePositions[i + 1].index : content.length;
+    
+    // 提取该时间范围的区块文本
+    const blockText = content.substring(tr.index, nextTrIndex);
+    
+    // 提取画面建议
+    const suggestionMatch = blockText.match(/画面建议:\s*([^\n]+)/);
+    const suggestion = suggestionMatch ? suggestionMatch[1].trim() : '';
+    
+    // 找出该时间范围内的 Top 块
+    const groupTops = topPositions.filter(t => t.index >= tr.index && t.index < nextTrIndex);
+    
+    // 解析每个 Top 块
+    const topBlocks = [];
+    for (let j = 0; j < groupTops.length; j++) {
+      const top = groupTops[j];
+      const nextTopIndex = (j < groupTops.length - 1) ? groupTops[j + 1].index : nextTrIndex;
+      
+      // 提取这个 TopN 到下一个 TopN 之间的文本
+      const topBlockText = content.substring(top.index, nextTopIndex);
+      
+      // 从 topBlockText 中提取元信息
+      const timestampMatch = topBlockText.match(/时间戳:\s*([^\n]+)/);
+      const confidenceMatch = topBlockText.match(/置信度:\s*([^\n]+)/);
+      const reasonMatch = topBlockText.match(/匹配原因:\s*([^\n<]+)/);
+      
+      // 提取图片
+      const images = [];
+      const imgRegex = /<img[^>]*data-zoom[^>]*src="([^"]+)"/g;
+      let imgMatch;
+      while ((imgMatch = imgRegex.exec(topBlockText)) !== null) {
+        images.push(imgMatch[1]);
+      }
+      
+      topBlocks.push({
+        num: top.num,
+        sceneInfo: top.sceneInfo,
+        timestamp: timestampMatch ? timestampMatch[1].trim() : '',
+        confidence: confidenceMatch ? confidenceMatch[1].trim() : '',
+        reason: reasonMatch ? reasonMatch[1].trim() : '',
+        images: images
+      });
+    }
+    
+    timeRangeGroups.push({
+      timeRange: tr.timeRange,
+      start: tr.start,
+      end: tr.end,
+      suggestion: suggestion,
+      topBlocks: topBlocks
+    });
+  }
+  
+  return { timeRangeGroups };
+}
+
+// 渲染图片网格
+function renderImageGrid(images) {
+  if (!images || images.length === 0) {
+    return '<div class="no-images">暂无匹配图片</div>';
+  }
+  
+  let html = '<div class="image-grid">';
+  images.forEach((src, idx) => {
+    html += `<img src="${esc(src)}" alt="匹配图${idx+1}" onclick="showImagePreview('${esc(src)}')" loading="lazy">`;
+  });
+  html += '</div>';
+  return html;
+}
+
+// 渲染 TopN 场景区块
+function renderTopSceneBlock(block) {
+  let html = `<div class="top-scene-block">
+    <div class="top-scene-header" onclick="toggleTopScene(this)">
+      <span class="top-scene-badge">Top${block.num}</span>
+      <span class="top-scene-info">场景 ${esc(block.sceneInfo)}</span>
+      <span class="top-scene-toggle">▼</span>
+    </div>
+    <div class="top-scene-body visible">`;
+  
+  // 元信息
+  if (block.timestamp || block.confidence || block.reason) {
+    html += `<div class="top-scene-meta">`;
+    if (block.timestamp) {
+      html += `<div class="ts-line">⏱ 时间戳: ${formatTimestampsClickable('时间戳: ' + block.timestamp).replace('时间戳: ', '')}</div>`;
+    }
+    if (block.confidence) {
+      html += `<div class="confidence">📊 置信度: ${esc(block.confidence)}</div>`;
+    }
+    if (block.reason) {
+      html += `<div class="reason">💡 匹配原因: ${esc(block.reason)}</div>`;
+    }
+    html += `</div>`;
+  }
+  
+  // 图片
+  html += renderImageGrid(block.images);
+  
+  html += `</div></div>`;
+  return html;
+}
+
+// 格式化时间戳为可点击
+function formatTimestampsClickable(text) {
+  if (!text) return '';
+  // 匹配 [HH:MM:SS - HH:MM:SS] 或 HH:MM:SS - HH:MM:SS 格式
+  let result = esc(text);
+  // 带方括号的时间戳
+  result = result.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)\]/g, 
+    '<span class="timestamp-tag" onclick="seekTo(\'$1\')">$1</span>-<span class="timestamp-tag" onclick="seekTo(\'$2\')">$2</span>');
+  // 不带方括号但有"时间范围:"前缀的
+  result = result.replace(/时间范围:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)/g,
+    '时间范围: <span class="timestamp-tag" onclick="seekTo(\'$1\')">$1</span>-<span class="timestamp-tag" onclick="seekTo(\'$2\')">$2</span>');
+  // 时间戳: 格式
+  result = result.replace(/时间戳:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)/g,
+    '时间戳: <span class="timestamp-tag" onclick="seekTo(\'$1\')">$1</span>-<span class="timestamp-tag" onclick="seekTo(\'$2\')">$2</span>');
+  return result;
+}
+
+function renderScriptOutput(rawOutput, visualMatches) {
+  const container = document.getElementById('scriptContainer');
+  if (!rawOutput?.trim()) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div></div>';
+    return;
+  }
+  const parsed = parseModelOutput(rawOutput);
+  if (!parsed) {
+    container.innerHTML = `<div class="script-section"><div class="script-section-body visible"><pre style="white-space:pre-wrap;font-size:10px">${esc(rawOutput)}</pre></div></div>`;
+    return;
+  }
+  let html = `<div class="script-section">
+    <div class="script-section-head" onclick="toggleSection(this)">
+      <span class="section-icon">🎬</span><span class="section-title">整体规划</span><span class="section-toggle">▼</span>
+    </div>
+    <div class="script-section-body visible">
+      <div class="script-field"><div class="field-label">⏱ 整体时长</div><div class="field-value timeline">${esc(parsed['整体时长'] || '—')}</div></div>
+      <div class="script-field"><div class="field-label">🎙 解说人设</div><div class="field-value">${esc(parsed['解说人设'] || '—')}</div></div>
+    </div>
+  </div>`;
+  const structure = parsed['内容结构'] || {};
+  const sectionIcons = ['🎣', '📖', '⚡', '🔥', '💥', '💎', '🎬', '🎯', '📌', '🌟'];
+  let sectionIdx = 0;
+  
+  Object.keys(structure).forEach((sectionKey, keyIndex) => {
+    const actIndex = keyIndex + 1; // 第几幕 (1-based)
+    const matchData = visualMatches ? visualMatches[actIndex] : null;
+    const content = structure[sectionKey];
+    if (!content || typeof content !== 'object') return;
+    
+    const icon = sectionIcons[sectionIdx % sectionIcons.length];
+    sectionIdx++;
+    
+    // 获取字段值，兼容有无空格的键名
+    const getField = (obj, ...keys) => {
+      for (const k of keys) {
+        if (obj[k] !== undefined) return obj[k];
+      }
+      return null;
+    };
+    
+    const timeline = getField(content, '脚本时间轴');
+    const editPoint = getField(content, '剪辑要点');
+    const mustScene = getField(content, 'Must画面建议', 'Must 画面建议');
+    const maybeScene = getField(content, 'Maybe画面建议', 'Maybe 画面建议');
+    const voiceover = getField(content, '画外音文案');
+    const soundEffect = getField(content, '音效建议');
+    const avMode = getField(content, '音画配合模式');
+    
+    // 获取解说人设（包含语速信息）
+    const narratorText = parsed['解说人设'] || '';
+    
+    // 计算时长分析
+    const durationAnalysis = calculateDurationAnalysis(timeline, mustScene, maybeScene, voiceover, avMode, narratorText);
+    
+    html += `<div class="script-section">
+      <div class="script-section-head" onclick="toggleSection(this)">
+        <span class="section-icon">${icon}</span><span class="section-title">${esc(sectionKey)}</span>
+        <span class="section-badge">${esc(timeline || '')}</span><span class="section-toggle">▼</span>
+      </div>
+      <div class="script-section-body visible">`;
+    
+    // 添加时长分析面板
+    if (durationAnalysis) {
+      const analysisId = `duration_${actIndex}_${Date.now()}`;
+      const modeClass = durationAnalysis.mode === 'voiceover' ? 'active' : '';
+      const originalModeClass = durationAnalysis.mode !== 'voiceover' ? 'active' : '';
+
+      html += `<div class="duration-analysis" id="${analysisId}"
+        data-start-sec="${durationAnalysis.startSec}"
+        data-end-sec="${durationAnalysis.endSec}"
+        data-script-duration="${durationAnalysis.scriptDuration}"
+        data-scene-duration="${durationAnalysis.sceneDuration}"
+        data-must-duration="${durationAnalysis.mustDuration}"
+        data-maybe-duration="${durationAnalysis.maybeDuration}"
+        data-voiceover-chars="${durationAnalysis.voiceoverChars}"
+        data-ideal-chars="${durationAnalysis.idealChars}"
+        data-speed="${durationAnalysis.speed}"
+        data-tolerance="${durationAnalysis.tolerance}"
+        data-mode="${durationAnalysis.mode}">
+        <div class="duration-analysis-title">📊 时长分析</div>
+
+        <!-- 脚本时长 -->
+        <div class="duration-row">
+          <span class="duration-label">脚本时长:</span>
+          <span class="duration-value" id="${analysisId}_timeline">${durationAnalysis.scriptDurationStr}</span>
+        </div>
+
+        <!-- 语速输入 -->
+        <div class="duration-row">
+          <span class="duration-label">语速:</span>
+          <input type="number" class="duration-input" id="${analysisId}_speed" value="${durationAnalysis.speed}" min="100" max="400" step="10" style="width:55px;">
+          <span class="duration-value">字/分</span>
+          <select id="${analysisId}_speedSelect" style="height:22px;padding:0 4px;font-size:9px;border:1px solid var(--border);border-radius:3px;">
+            <option value="">选择</option>
+            <option value="180">180(慢)</option>
+            <option value="200">200(标准)</option>
+            <option value="220">220(中快)</option>
+            <option value="240">240(快)</option>
+            <option value="260">260(很快)</option>
+          </select>
+        </div>
+
+        <!-- 音画模式选择 -->
+        <div class="duration-row">
+          <span class="duration-label">音画模式:</span>
+          <div class="mode-selector" style="flex:1;">
+            <button class="mode-btn ${modeClass}" data-mode="voiceover" data-id="${analysisId}">仅解读</button>
+            <button class="mode-btn ${originalModeClass}" data-mode="original" data-id="${analysisId}">混合模式</button>
+          </div>
+        </div>
+
+        <!-- 理想字数区间 -->
+        <div class="duration-row">
+          <span class="duration-label">理想字数:</span>
+          <span class="char-range" id="${analysisId}_charRange"><b>${durationAnalysis.idealChars}</b> <span class="min-max">(${Math.round(durationAnalysis.idealChars * 0.9)}-${Math.round(durationAnalysis.idealChars * 1.1)})</span></span>
+        </div>
+
+        <!-- 画面时长 -->
+        <div class="duration-row">
+          <span class="duration-label">画面时长:</span>
+          <span class="duration-value" id="${analysisId}_scene">${durationAnalysis.sceneDurationStr}</span>
+        </div>
+
+        <!-- Must时长 -->
+        <div class="duration-row" style="flex-wrap:wrap;gap:4px;">
+          <span class="duration-label">Must:</span>
+          <div class="scene-input-group" id="${analysisId}_must_inputs">
+            ${durationAnalysis.mustRanges.map(r => `<input type="text" class="scene-input" value="${r}"><button class="remove-scene-btn">×</button>`).join('')}
+            <input type="text" class="scene-input" placeholder="如 00:10-00:25">
+          </div>
+          <button class="add-scene-btn" onclick="addSceneInput('${analysisId}_must_inputs')">+</button>
+          <span class="duration-value" style="margin-left:4px;">= <span id="${analysisId}_mustDur">${durationAnalysis.mustDurationStr}</span></span>
+        </div>
+
+        <!-- Maybe时长 -->
+        <div class="duration-row" style="flex-wrap:wrap;gap:4px;">
+          <span class="duration-label">Maybe:</span>
+          <div class="scene-input-group" id="${analysisId}_maybe_inputs">
+            ${durationAnalysis.maybeRanges.map(r => `<input type="text" class="scene-input" value="${r}"><button class="remove-scene-btn">×</button>`).join('')}
+            <input type="text" class="scene-input" placeholder="如 00:30-00:45">
+          </div>
+          <button class="add-scene-btn" onclick="addSceneInput('${analysisId}_maybe_inputs')">+</button>
+          <span class="duration-value" style="margin-left:4px;">= <span id="${analysisId}_maybeDur">${durationAnalysis.maybeDurationStr}</span></span>
+        </div>
+
+        <!-- 画面匹配 -->
+        <div class="duration-row" style="padding-top:6px;border-top:1px dashed var(--border);">
+          <span class="duration-label">画面匹配:</span>
+          <span class="match-badge ${durationAnalysis.picMatchClass === 'ok' ? 'available' : 'shortage'}" id="${analysisId}_pic_match">
+            ${durationAnalysis.picMatchResult.includes('匹配') ? '✅ 画面匹配' : '⚠️ 缺' + (durationAnalysis.scriptDuration - durationAnalysis.sceneDuration) + '秒'}
+          </span>
+          <button class="duration-calc-btn" onclick="recalculateDuration('${analysisId}')" style="margin-left:auto;">🔄 计算</button>
+        </div>
+      </div>`;
+    }
+    
+    if (editPoint) html += `<div class="script-field"><div class="field-label">✂️ 剪辑要点</div><div class="field-value">${esc(editPoint)}</div></div>`;
+    if (mustScene) html += `<div class="script-field"><div class="field-label">🔴 Must画面</div><div class="field-value must">${formatTimestamps(mustScene)}</div></div>`;
+    if (maybeScene) html += `<div class="script-field"><div class="field-label">🟢 Maybe画面</div><div class="field-value maybe">${formatTimestamps(maybeScene)}</div></div>`;
+    if (voiceover) html += `<div class="script-field"><div class="field-label">📝 画外音 (${countChineseChars(voiceover)}字)</div><div class="field-value voiceover">${esc(voiceover)}</div></div>`;
+    if (soundEffect) html += `<div class="script-field"><div class="field-label">🔊 音效</div><div class="field-value">${esc(soundEffect)}</div></div>`;
+    if (avMode) html += `<div class="script-field"><div class="field-label">🎞 音画模式</div><div class="field-value">${esc(avMode)}</div></div>`;
+    
+    // 添加画面匹配区域 (来自 Excel 中的 p{n}_xxx 字段)
+    if (matchData) {
+      html += renderVisualMatchSection(matchData, actIndex);
+    }
+    
+    html += `</div></div>`;
+  });
+  
+  const pkg = parsed['视频包装规范'];
+  if (pkg && typeof pkg === 'object') {
+    html += `<div class="package-section"><div class="package-title">🎨 包装规范</div>`;
+    Object.keys(pkg).forEach(key => {
+      const val = pkg[key];
+      if (val && typeof val === 'string') {
+        html += `<div class="package-item"><span class="package-label">${esc(key)}:</span><span class="package-value">${esc(val)}</span></div>`;
+      }
+    });
+    html += `</div>`;
+  }
+  container.innerHTML = html;
+
+  // 设置时长分析模块的事件监听器
+  setupDurationAnalysisListeners(container);
+}
+
+// 设置时长分析模块的事件监听器
+function setupDurationAnalysisListeners(container) {
+  // 模式按钮点击事件
+  container.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const analysisId = this.dataset.id;
+      const mode = this.dataset.mode;
+      const container = document.getElementById(analysisId);
+      if (container) {
+        // 更新按钮状态
+        container.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        // 更新数据属性
+        container.dataset.mode = mode;
+        // 重新计算
+        recalculateDuration(analysisId);
+      }
+    });
+  });
+
+  // 语速选择下拉框变化事件
+  container.querySelectorAll('[id$="_speedSelect"]').forEach(select => {
+    select.addEventListener('change', function() {
+      const analysisId = this.id.replace('_speedSelect', '');
+      const speedInput = document.getElementById(`${analysisId}_speed`);
+      if (speedInput && this.value) {
+        speedInput.value = this.value;
+        recalculateDuration(analysisId);
+      }
+    });
+  });
+
+  // 删除场景输入框按钮点击事件
+  container.querySelectorAll('.remove-scene-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const input = this.previousElementSibling;
+      const parent = this.parentNode;
+      if (input && parent) {
+        parent.removeChild(input);
+        parent.removeChild(this);
+      }
+    });
+  });
+}
+
+function parseModelOutput(raw) {
+  if (!raw || raw === 'nan' || raw === 'NaN' || raw === 'null') return null;
+  
+  let s = String(raw).trim();
+  
+  // 0. 处理Excel双引号转义：先去除最外层引号，再将 "" 替换为 "
+  if (s.startsWith('"') && s.endsWith('"')) {
+    s = s.slice(1, -1);
+  }
+  s = s.replace(/""/g, '"');
+  
+  // 移除 markdown 代码块标记
+  s = s.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  
+  // 第一次尝试：直接解析
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // === 综合修复：逐行处理引号转义和逗号补充 ===
+  let lines = s.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    let trimmed = line.trimEnd();
+    
+    // 1. 先处理字符串值内部的未转义双引号
+    const colonIdx = trimmed.indexOf('": "');
+    if (colonIdx >= 0) {
+      const afterColon = colonIdx + 4;
+      let endQuoteIdx = -1;
+      let hasTailComma = false;
+      
+      if (trimmed.endsWith('",')) {
+        endQuoteIdx = trimmed.length - 2;
+        hasTailComma = true;
+      } else if (trimmed.endsWith('"')) {
+        endQuoteIdx = trimmed.length - 1;
+      }
+      
+      if (endQuoteIdx > afterColon) {
+        const valueContent = trimmed.substring(afterColon, endQuoteIdx);
+        let hasUnescaped = false;
+        for (let j = 0; j < valueContent.length; j++) {
+          if (valueContent[j] === '"' && (j === 0 || valueContent[j-1] !== '\\')) {
+            hasUnescaped = true;
+            break;
+          }
+        }
+        
+        if (hasUnescaped) {
+          let escaped = '';
+          for (let j = 0; j < valueContent.length; j++) {
+            if (valueContent[j] === '"' && (j === 0 || valueContent[j-1] !== '\\')) {
+              escaped += '\\"';
+            } else {
+              escaped += valueContent[j];
+            }
+          }
+          const prefix = trimmed.substring(0, afterColon);
+          trimmed = prefix + escaped + '"' + (hasTailComma ? ',' : '');
+          lines[i] = trimmed;
+        }
+      }
+    }
+    
+    // 2. 再处理逗号补充（需要检查下一行）
+    if (i < lines.length - 1) {
+      trimmed = lines[i].trimEnd(); // 重新获取（可能被修改）
+      const nextLine = lines[i + 1];
+      const nextTrimmed = nextLine.trim();
+      
+      if (trimmed && nextTrimmed) {
+        const endsWithValue = /["\}\]\d]$/.test(trimmed);
+        const notEndsWithComma = !trimmed.endsWith(',');
+        const notEndsWithOpen = !trimmed.endsWith('{') && !trimmed.endsWith('[') && !trimmed.endsWith(':');
+        const nextIsKeyOrClose = /^"/.test(nextTrimmed) || nextTrimmed === '}' || nextTrimmed === ']' || nextTrimmed.startsWith('},') || nextTrimmed.startsWith('],');
+        
+        if (endsWithValue && notEndsWithComma && notEndsWithOpen && nextIsKeyOrClose) {
+          lines[i] = trimmed + ',';
+        }
+      }
+    }
+  }
+  s = lines.join('\n');
+  
+  // 第二次尝试
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // 额外修复：使用更强力的正则兜底（多次执行确保深层嵌套也被修复）
+  for (let round = 0; round < 3; round++) {
+    s = s.replace(/"(\s*)\n(\s*"[^"]*"\s*:)/g, '",\n$2');
+    s = s.replace(/\}(\s*)\n(\s*")/g, '},\n$2');
+    s = s.replace(/\](\s*)\n(\s*")/g, '],\n$2');
+    s = s.replace(/\}(\s*)\n(\s*\})/g, '},\n$2');
+    s = s.replace(/(\d)(\s*)\n(\s*"[^"]*"\s*:)/g, '$1,\n$3');
+  }
+  
+  // 第三次尝试
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // 修复结构性问题
+  for (let fixRound = 0; fixRound < 5; fixRound++) {
+    s = s.replace(/\},?(\s*)\n(\s*"[^"]+"\s*:\s*\{)/g, ',\n$2');
+    s = s.replace(/\},?(\s*)\n(\s*"[^"]+"\s*:\s*")/g, ',\n$2');
+    s = s.replace(/\},?(\s*)\n(\s*"[^"]+"\s*:\s*\[)/g, ',\n$2');
+  }
+  
+  // 第四次尝试
+  try { return JSON.parse(s); } catch(e) {}
+  
+  // 最后：移除末尾多余逗号
+  s = s.replace(/,(\s*[\]}])/g, '$1');
+  
+  try { return JSON.parse(s); } catch(e) { return null; }
+}
+
+function formatTimestamps(text) {
+  if (!text) return '';
+  return esc(text).replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)\]/g, 
+    '<span class="timestamp-tag" onclick="seekTo(\'$1\')">$1</span>-<span class="timestamp-tag" onclick="seekTo(\'$2\')">$2</span>');
+}
+
+function countChineseChars(text) {
+  if (!text) return 0;
+  return (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 时长分析功能
+// ═══════════════════════════════════════════════════════════
+
+// 从文本中提取时间区间列表
+function extractTimeRanges(text) {
+  if (!text) return [];
+  const ranges = [];
+  const regex = /\[(\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    ranges.push(`${match[1]}-${match[2]}`);
+  }
+  return ranges;
+}
+
+// 解析语速（如 "180字/分" → 180）
+function parseNarratorSpeed(narratorText) {
+  if (!narratorText) return 200; // 默认200字/分
+  // 匹配 "语速：[180字/分" 或 "180字/分钟" 等格式
+  const match = narratorText.match(/(\d+)\s*字\s*[\/每]\s*分/);
+  return match ? parseInt(match[1]) : 200;
+}
+
+function calculateDurationAnalysis(timeline, mustScene, maybeScene, voiceover, avMode, narratorText) {
+  if (!timeline && !voiceover) return null;
+  
+  // 1. 解析脚本时间轴 (如 "00:00 - 00:45")
+  let scriptDuration = 0;
+  let startSec = 0;
+  let endSec = 0;
+  if (timeline) {
+    const timeMatch = timeline.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*-\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (timeMatch) {
+      startSec = parseInt(timeMatch[1])*60 + parseInt(timeMatch[2]) + (timeMatch[3] ? parseInt(timeMatch[3]) : 0);
+      endSec = parseInt(timeMatch[4])*60 + parseInt(timeMatch[5]) + (timeMatch[6] ? parseInt(timeMatch[6]) : 0);
+      scriptDuration = endSec - startSec;
+    }
+  }
+  
+  // 2. 解析画面时长（从时间戳提取）
+  function extractSceneDuration(text) {
+    if (!text) return 0;
+    let total = 0;
+    const regex = /\[(\d{1,2}):(\d{2})(?::(\d{2}))?\s*-\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\]/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const startSec = parseInt(match[1])*60 + parseInt(match[2]) + (match[3] ? parseInt(match[3]) : 0);
+      const endSec = parseInt(match[4])*60 + parseInt(match[5]) + (match[6] ? parseInt(match[6]) : 0);
+      total += Math.max(0, endSec - startSec);
+    }
+    return total;
+  }
+  
+  const mustDuration = extractSceneDuration(mustScene);
+  const maybeDuration = extractSceneDuration(maybeScene);
+  const sceneDuration = mustDuration + maybeDuration;
+  
+  // 提取时间区间列表
+  const mustRanges = extractTimeRanges(mustScene);
+  const maybeRanges = extractTimeRanges(maybeScene);
+  
+  // 3. 解析语速并计算理想字数
+  const speed = parseNarratorSpeed(narratorText); // 字/分钟
+  const idealChars = Math.round(scriptDuration * speed / 60); // 脚本时长对应的理想字数
+  
+  // 4. 计算实际画外音字数
+  const voiceoverChars = countChineseChars(voiceover);
+  
+  // 5. 解析音画配合模式
+  let mode = 'unknown';
+  let modeLabel = '未知模式';
+  let tolerance = 0.2; // 默认浮动范围 ±20%
+  if (avMode) {
+    if (avMode.includes('MODE_PURE_VOICEOVER')) {
+      mode = 'voiceover';
+      modeLabel = '解说主导';
+      tolerance = 0.1; // 解说模式 ±10%
+    } else if (avMode.includes('MODE_PURE_ORIGINAL')) {
+      mode = 'original';
+      modeLabel = '原声主导';
+      tolerance = 0.2;
+    } else if (avMode.includes('MODE_DYNAMIC_MIX')) {
+      mode = 'mix';
+      modeLabel = '复合交互';
+      tolerance = 0.2; // 混合模式 ±20%
+    }
+  }
+  
+  // 6. 计算画面匹配情况
+  let picMatchResult = '';
+  let picMatchClass = '';
+  const T_total = mustDuration + maybeDuration;
+  
+  if (T_total >= scriptDuration) {
+    picMatchResult = '🟢 画面匹配';
+    picMatchClass = 'ok';
+  } else {
+    const shortage = scriptDuration - T_total;
+    picMatchResult = `🟠 画面不够需补充 (缺${shortage}s)`;
+    picMatchClass = 'warn';
+  }
+  
+  // 7. 计算文案匹配情况
+  let textMatchResult = '';
+  let textMatchClass = '';
+  const charDiff = voiceoverChars - idealChars;
+  const charDiffPercent = idealChars > 0 ? Math.round(charDiff / idealChars * 100) : 0;
+  const tolerancePercent = Math.round(tolerance * 100);
+  
+  if (Math.abs(charDiffPercent) <= tolerancePercent) {
+    textMatchResult = `🟢 文案匹配 (${charDiffPercent >= 0 ? '+' : ''}${charDiffPercent}%)`;
+    textMatchClass = 'ok';
+  } else if (charDiffPercent > tolerancePercent) {
+    textMatchResult = `🔴 文案过载需缩减 (超${charDiffPercent}%)`;
+    textMatchClass = 'danger';
+  } else {
+    textMatchResult = `🟠 文案过少需增写 (不足${Math.abs(charDiffPercent)}%)`;
+    textMatchClass = 'warn';
+  }
+  
+  // 格式化时长显示
+  const formatSec = (s) => {
+    if (s < 60) return `${s}秒`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return sec > 0 ? `${m}分${sec}秒` : `${m}分`;
+  };
+  
+  return {
+    scriptDuration,
+    scriptDurationStr: formatSec(scriptDuration),
+    startSec,
+    endSec,
+    mustDuration,
+    mustDurationStr: formatSec(mustDuration),
+    maybeDuration,
+    maybeDurationStr: formatSec(maybeDuration),
+    sceneDuration,
+    sceneDurationStr: formatSec(sceneDuration),
+    mustRanges,
+    maybeRanges,
+    voiceoverChars,
+    idealChars,
+    speed,
+    tolerance,
+    tolerancePercent,
+    mode,
+    modeLabel,
+    picMatchResult,
+    picMatchClass,
+    textMatchResult,
+    textMatchClass
+  };
+}
+
+function toggleSection(head) {
+  const body = head.nextElementSibling;
+  const toggle = head.querySelector('.section-toggle');
+  body.classList.toggle('visible');
+  toggle.textContent = body.classList.contains('visible') ? '▼' : '▶';
+}
+
+function seekTo(timeStr) {
+  const video = document.getElementById('videoPlayer');
+  if (!video.src) return;
+  const parts = timeStr.split(':').map(Number);
+  let seconds = parts.length === 3 ? parts[0]*3600 + parts[1]*60 + parts[2] : parts[0]*60 + parts[1];
+  video.currentTime = seconds;
+  video.play();
+  showToast(`跳转到 ${timeStr}`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 导航
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if (currentIdx > 0) renderCase(currentIdx - 1);
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  if (currentIdx < rows.length - 1) renderCase(currentIdx + 1);
+});
+document.getElementById('btnJump').addEventListener('click', () => {
+  const v = parseInt(document.getElementById('jumpInput').value, 10);
+  if (v >= 1 && v <= rows.length) renderCase(v - 1);
+});
+document.getElementById('jumpInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btnJump').click(); });
+
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft') document.getElementById('btnPrev').click();
+  if (e.key === 'ArrowRight') document.getElementById('btnNext').click();
+});
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 1500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 初始化和事件监听
+// ═══════════════════════════════════════════════════════════
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+  // 初始化认证状态
+  initAuth();
+
+  // 初始化数据集下拉菜单
+  updateDatasetDropdown();
+
+  // 登录模态框事件
+  document.getElementById('closeLoginModal').addEventListener('click', hideLoginModal);
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+
+  // 数据集管理模态框事件
+  document.getElementById('closeDatasetManager').addEventListener('click', hideDatasetManager);
+
+  // 数据集上传事件
+  const uploadZone = document.getElementById('datasetUploadZone');
+  const fileInput = document.getElementById('datasetFileInput');
+
+  uploadZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleDatasetUpload(e.target.files[0]);
+  });
+
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.style.borderColor = 'var(--accent)';
+    uploadZone.style.background = 'var(--accent-light)';
+  });
+
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.style.borderColor = 'var(--border2)';
+    uploadZone.style.background = 'transparent';
+  });
+
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.style.borderColor = 'var(--border2)';
+    uploadZone.style.background = 'transparent';
+    if (e.dataTransfer.files[0]) handleDatasetUpload(e.dataTransfer.files[0]);
+  });
+
+  // 数据集下拉菜单事件
+  const datasetDropdownBtn = document.getElementById('datasetDropdownBtn');
+  const datasetDropdownMenu = document.getElementById('datasetDropdownMenu');
+
+  datasetDropdownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    datasetDropdownMenu.classList.toggle('visible');
+  });
+
+  document.addEventListener('click', () => {
+    datasetDropdownMenu.classList.remove('visible');
+  });
+
+  datasetDropdownMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // 强制加载默认数据集
+  loadDefaultDataset();
+
+  // 登录按钮点击
+  document.getElementById('btnLogin').addEventListener('click', () => {
+    if (isLoggedIn) {
+      showDatasetManager();
+    } else {
+      showLoginModal();
+    }
+  });
+});
+
+// 加载默认数据集（从服务器加载）
+async function loadDefaultDataset() {
+  // 从服务器加载默认数据文件（使用简单的英文名避免编码问题）
+  const dataUrl = './data.xlsx';
+  try {
+    document.getElementById('uploadStatus').innerHTML = `⏳ 正在加载数据文件...`;
+    const response = await fetch(dataUrl);
+    if (!response.ok) throw new Error('数据文件加载失败: ' + response.status);
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const caseData = XLSX.utils.sheet_to_json(sheet);
+    processLoadedData(caseData, '样例数据集 v2');
+  } catch (err) {
+    document.getElementById('uploadStatus').innerHTML = `⚠️ 加载失败: ${err.message}`;
+    document.getElementById('uploadScreen').style.display = 'flex';
+  }
+}
+
+// 替换原有的文件加载逻辑，使用数据集模式
+function loadFile(file) {
+  document.getElementById('loadingOverlay').classList.add('visible');
+
+  try {
+    const fileName = file.name.toLowerCase();
+
+    // 判断文件类型
+    if (fileName.endsWith('.jsonl')) {
+      loadJsonlFile(file);
+    } else {
+      loadExcelFile(file);
+    }
+  } catch (err) {
+    document.getElementById('loadingOverlay').classList.remove('visible');
+    showToast('解析失败: ' + err.message);
+  }
+}
+
+// 加载 JSONL 文件
+async function loadJsonlFile(file) {
+  const text = await file.text();
+  const lines = text.trim().split('\n').filter(l => l.trim());
+
+  const data = lines.map((line, idx) => {
+    try {
+      const row = JSON.parse(line);
+      return {
+        id: String(row['data_id'] || idx + 1),
+        videoUrl: row['video_url'] || '',
+        modelOutput: row['total_json'] ? JSON.stringify(row['total_json']) : '',
+        step4Fixed: null,
+        visualMatches: {}
+      };
+    } catch (e) {
+      return { id: String(idx + 1), videoUrl: '', modelOutput: '', step4Fixed: null, visualMatches: {} };
+    }
+  });
+
+  processLoadedData(data, file.name);
+}
+
+// 加载 Excel 文件
+async function loadExcelFile(file) {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const caseData = XLSX.utils.sheet_to_json(sheet);
+
+  processLoadedData(caseData, file.name);
+}
+
+function initTool() {
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('caseLayout').classList.add('visible');
+  document.getElementById('caseTotal').textContent = rows.length;
+  document.getElementById('btnReload').style.display = 'flex';
+  document.getElementById('btnPrev').disabled = false;
+  document.getElementById('btnNext').disabled = false;
+  currentIdx = 0;
+  renderCase(0);
+}
+
+// 暴露全局函数（用于HTML中的onclick）
+window.startRenameDataset = startRenameDataset;
+window.finishRenameDataset = finishRenameDataset;
+window.deleteDataset = deleteDataset;
+window.switchDataset = switchDataset;
+</script>
+
+<!-- 登录模态框 -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">🔐 管理员登录</span>
+      <button class="modal-close" id="closeLoginModal">×</button>
+    </div>
+    <div class="modal-body">
+      <form class="login-form" id="loginForm">
+        <div class="login-error" id="loginError">用户名或密码错误</div>
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="loginUsername" placeholder="请输入用户名" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="loginPassword" placeholder="请输入密码">
+        </div>
+        <button type="submit" class="auth-btn primary" style="width:100%;justify-content:center;height:40px;font-size:13px;">登录</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- 数据集管理模态框 -->
+<div class="modal-overlay" id="datasetManagerModal">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-header">
+      <span class="modal-title">📁 数据集管理</span>
+      <button class="modal-close" id="closeDatasetManager">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="dataset-manager">
+        <!-- 上传区域 -->
+        <div class="dataset-upload-zone" id="datasetUploadZone">
+          <input type="file" id="datasetFileInput" accept=".xlsx,.xls,.jsonl">
+          <div class="upload-zone-icon">📤</div>
+          <div class="upload-zone-text">点击或拖拽上传数据集文件</div>
+          <div class="upload-zone-hint">支持 Excel (.xlsx, .xls) 或 JSONL (.jsonl) 格式</div>
+        </div>
+        <!-- 数据集列表 -->
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">已上传的数据集</div>
+        <div class="dataset-list" id="datasetList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
